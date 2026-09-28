@@ -1,0 +1,14 @@
+# Native Windows requirements for webcam capture process
+# Install with: pip install -r requirements-native.txt
+#
+# This runs the webcam capture loop natively on Windows
+# (Docker/WSL2 cannot access the laptop webcam directly)
+
+opencv-python>=4.5.0
+Pillow>=8.0.0
+requests>=2.25.0
+aiohttp>=3.9.0
+PyYAML>=6.0
+python-dotenv>=1.0.0
+numpy>=1.24.0
+python-telegram-bot>=20.0

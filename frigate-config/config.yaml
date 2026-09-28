@@ -35,14 +35,14 @@ ffmpeg:
   input_args: preset-rtsp-restream
 
 cameras:
-  CAM1: # <------ Name the camera
+  LAPTOP_CAM: # <------ Name the camera
     enabled: true
     ffmpeg:
       inputs:
-        - path: rtsp://admin:your_password_here@10.0.0.1:554/1 # <----- The stream you want to use for detection
+        - path: rtsp://mediamtx:8554/cam # <----- The stream you want to use for detection
           roles:
             - detect
-        - path: rtsp://admin:your_password_here@10.0.0.1:554/0 # <----- The stream you want to use for record
+        - path: rtsp://mediamtx:8554/cam # <----- The stream you want to use for record
           roles:
             - record
 

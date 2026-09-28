@@ -9,9 +9,9 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import asyncio
-from telegram import Bot
 from .telegram_alert import TelegramAlert
 from .grafana_irm_alert import GrafanaIRMAlert
+from .ntfy_alert import NtfyAlert
 
 
 def is_suspicious_activity_detected(llm_result: Dict[str, Any]) -> bool:
@@ -51,20 +51,46 @@ def is_suspicious_activity_detected(llm_result: Dict[str, Any]) -> bool:
 
 
 class AlertManager:
-    """Routes alerts to the appropriate backend (Telegram or Grafana IRM)."""
+    """Routes alerts to configured backends (ntfy, Telegram, Grafana IRM, or all)."""
     def __init__(self, config: Dict[str, Any] = None):
-        self.config = config or {}
-        self.backend = os.getenv('ALERT_BACKEND', 'telegram').lower()
+        raw_config = config or {}
+        # Support either full config or alerts sub-dictionary
+        self.config = raw_config.get('alerts', raw_config)
+        self.logger = logging.getLogger(__name__)
+
+        self.backend = os.getenv('ALERT_BACKEND', self.config.get('backend', 'all')).lower()
         
-        # Get alert configurations
-        alerts_config = self.config.get('alerts', {})
-        telegram_config = alerts_config.get('telegram', {})
-        grafana_config = alerts_config.get('grafana', {})
+        telegram_config = self.config.get('telegram', {})
+        grafana_config = self.config.get('grafana', {})
+        ntfy_config = self.config.get('ntfy', {})
         
-        if self.backend == 'telegram':
-            self.alert_backend = TelegramAlert(telegram_config)
-        else:
-            self.alert_backend = GrafanaIRMAlert(grafana_config)
+        self.backends = []
+        
+        # Determine active backends
+        if self.backend in ['telegram', 'all', 'both']:
+            tg = TelegramAlert(telegram_config)
+            if tg.enabled:
+                self.backends.append(tg)
+                
+        if self.backend in ['ntfy', 'all', 'both']:
+            ntfy = NtfyAlert(ntfy_config)
+            if ntfy.enabled:
+                self.backends.append(ntfy)
+                
+        if self.backend in ['grafana']:
+            graf = GrafanaIRMAlert(grafana_config)
+            self.backends.append(graf)
+            
+        # Fallback if specific backend chosen
+        if not self.backends:
+            if self.backend == 'ntfy':
+                self.backends.append(NtfyAlert(ntfy_config))
+            elif self.backend == 'telegram':
+                self.backends.append(TelegramAlert(telegram_config))
+            else:
+                self.backends.append(NtfyAlert(ntfy_config))
+                
+        self.logger.info(f"AlertManager initialized with {len(self.backends)} active backends")
         self.video_clip_base_url = os.getenv('VIDEO_CLIP_BASE_URL')
 
     def _prepare_incident_data(self, event_id: str, llm_result: Dict[str, Any]) -> Dict[str, Any]:
@@ -111,4 +137,13 @@ class AlertManager:
         else:
             logging.getLogger(__name__).info(f"Sending normal activity notification for event {event_id} (send_all_activities: {send_all_activities})")
         
-        return self.alert_backend.send_incident(incident_data) 
+        success = True
+        for backend in self.backends:
+            try:
+                res = backend.send_incident(incident_data)
+                if not res:
+                    success = False
+            except Exception as e:
+                self.logger.error(f"Error dispatching to backend {backend.__class__.__name__}: {e}")
+                success = False
+        return success 

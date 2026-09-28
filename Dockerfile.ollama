@@ -1,0 +1,11 @@
+FROM ollama/ollama:latest
+
+# Copy the model pull script
+COPY scripts/pull_model.sh /pull_model.sh
+RUN chmod +x /pull_model.sh
+
+# Expose Ollama API port
+EXPOSE 11434
+
+# Entrypoint: start Ollama server, then pull model if not present
+ENTRYPOINT ["/bin/sh", "-c", "ollama serve & sleep 5 && /pull_model.sh && wait"]

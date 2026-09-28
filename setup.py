@@ -20,7 +20,7 @@ setup(
     author="Your Name",
     author_email="your.email@example.com",
     description="A Python project with clean structure",
-    long_description=open("README.md").read(),
+    long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     classifiers=[
         "Development Status :: 3 - Alpha",

@@ -10,7 +10,7 @@ import time
 from typing import Dict, Any, Optional, List, Tuple
 import cv2
 from PIL import Image
-from transformers import AutoProcessor, Gemma3nForConditionalGeneration
+from transformers import AutoProcessor, AutoModelForVision2Seq, BitsAndBytesConfig
 import torch
 import setproctitle
 
@@ -87,11 +87,22 @@ class LLMInferenceEngine:
             model_kwargs = {
                 'torch_dtype': torch.bfloat16,
             }
+
+            # Check for 4-bit quantization
+            if self.config.get('load_in_4bit', False):
+                self.logger.info("Enabling 4-bit quantization via bitsandbytes")
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4"
+                )
+
             
             # Create custom device map to keep audio tower on CPU
             if torch.cuda.is_available():
                 # Load model temporarily to get module names
-                temp_model = Gemma3nForConditionalGeneration.from_pretrained(
+                temp_model = AutoModelForVision2Seq.from_pretrained(
                     model_id, 
                     torch_dtype=torch.bfloat16,
                     device_map="cpu"  # Load on CPU first to inspect
@@ -140,7 +151,7 @@ class LLMInferenceEngine:
                 self.logger.info("No max_memory specified in config, using default device mapping")
             
             # Use custom device map for optimal GPU memory usage
-            self.model = Gemma3nForConditionalGeneration.from_pretrained(
+            self.model = AutoModelForVision2Seq.from_pretrained(
                 model_id, 
                 **model_kwargs
             ).eval()

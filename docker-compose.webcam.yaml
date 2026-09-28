@@ -1,0 +1,100 @@
+# Sunny Osprey - Webcam Edition Docker Compose
+# Designed for: 16GB RAM, RTX 2050 4GB VRAM, single laptop webcam
+#
+# Architecture:
+#   - ollama: LLM inference server (gemma3n:e2b, GPU-accelerated)
+#   - sunny-osprey-dashboard: FastAPI web UI + real-time event feed
+#   - mqtt: MQTT broker (for future Frigate integration)
+#
+# NOTE: The webcam capture process runs NATIVELY on Windows (outside Docker)
+# because Docker on Windows/WSL2 does not support webcam USB passthrough.
+# The native process sends inference requests to Ollama on localhost:11434
+# and posts events to the dashboard on localhost:8080.
+#
+# To run the webcam process natively:
+#   pip install -r requirements-native.txt
+#   python src/sunny_osprey/webcam_capture.py
+
+services:
+
+  # ─── Ollama LLM Server ─────────────────────────────────────────────────────
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+    image: sunny-osprey-ollama
+    container_name: sunny-osprey-ollama
+    ports:
+      - "11434:11434"   # Ollama REST API (accessible from Windows host)
+    volumes:
+      - ollama_models:/root/.ollama   # Persist downloaded models
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3n:e2b}
+      - OLLAMA_NUM_GPU=1
+      - OLLAMA_GPU_LAYERS=99          # Push all layers to GPU
+      - OLLAMA_KEEP_ALIVE=-1          # Keep model loaded in VRAM indefinitely
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - sunny-osprey-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s   # Model pull can take time
+
+  # ─── Dashboard Service ─────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sunny-osprey-app
+    container_name: sunny-osprey-dashboard
+    command: ["/venv/bin/python", "-m", "uvicorn", "sunny_osprey.dashboard:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    ports:
+      - "8080:8080"   # Web dashboard (open in browser)
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=http://ollama:11434
+      - EVENTS_STORE_PATH=/app/events_store
+    volumes:
+      - ./events_store:/app/events_store:rw        # Shared event storage
+      - ./src:/app/src:rw                          # Live code reload
+      - ./dashboard:/app/dashboard:ro              # Dashboard static files
+      - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+      - ./prompt.txt:/app/prompt.txt:ro
+      - ./system_prompt.txt:/app/system_prompt.txt:ro
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - sunny-osprey-network
+    restart: unless-stopped
+
+  # ─── MQTT Broker (for future Frigate integration) ──────────────────────────
+  mqtt:
+    image: eclipse-mosquitto:latest
+    container_name: sunny-osprey-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - sunny-osprey-network
+    restart: unless-stopped
+
+networks:
+  sunny-osprey-network:
+    driver: bridge
+
+volumes:
+  ollama_models:
+    driver: local    # Persists across container restarts

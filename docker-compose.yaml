@@ -96,8 +96,20 @@ services:
     profiles:
       - frigate
 
-
-
+  # RTSP Server for Laptop Webcam
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    ports:
+      - "8554:8554"
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+    networks:
+      - sunny-osprey-network
+    restart: unless-stopped
+    profiles:
+      - frigate
 networks:
   sunny-osprey-network:
 

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sunny Osprey — AI Security Monitor</title>
+  <meta name="description" content="Real-time AI-powered security monitoring dashboard powered by Gemma 3n" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">🦅</span>
+        <div class="logo-text">
+          <span class="logo-title">Sunny Osprey</span>
+          <span class="logo-sub">AI Security Monitor</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="status-bar">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-label" id="statusLabel">Connecting...</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="model-badge">
+        <span class="model-icon">🧠</span>
+        <span>gemma3n:e2b</span>
+      </div>
+      <div class="time-display" id="timeDisplay"></div>
+    </div>
+  </header>
+
+  <!-- ── Main Layout ──────────────────────────────────────────────────────── -->
+  <main class="main-grid">
+
+    <!-- ── Left Column: Camera Feed + Stats ──────────────────────────────── -->
+    <section class="left-panel">
+
+      <!-- Live Camera Feed -->
+      <div class="panel camera-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <span class="panel-icon">📷</span> Live Feed
+          </h2>
+          <div class="live-badge">
+            <span class="live-pulse"></span> LIVE
+          </div>
+        </div>
+        <div class="camera-container">
+          <img id="cameraFeed" class="camera-feed" src="" alt="Live webcam feed" />
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <div class="placeholder-icon">📷</div>
+            <p>Waiting for webcam stream...</p>
+            <p class="placeholder-sub">Start the webcam pipeline to see live feed</p>
+          </div>
+          <!-- Overlays -->
+          <div class="camera-overlay" id="cameraOverlay">
+            <div class="overlay-corner tl"></div>
+            <div class="overlay-corner tr"></div>
+            <div class="overlay-corner bl"></div>
+            <div class="overlay-corner br"></div>
+          </div>
+          <div class="analyzing-badge hidden" id="analyzingBadge">
+            <span class="spin">⚙️</span> Analyzing...
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalEvents">0</div>
+          <div class="stat-label">Total Events</div>
+          <div class="stat-icon">📊</div>
+        </div>
+        <div class="stat-card stat-card--alert">
+          <div class="stat-value" id="suspiciousEvents">0</div>
+          <div class="stat-label">Suspicious</div>
+          <div class="stat-icon">🚨</div>
+        </div>
+        <div class="stat-card stat-card--safe">
+          <div class="stat-value" id="normalEvents">0</div>
+          <div class="stat-label">Normal</div>
+          <div class="stat-icon">✅</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="activeConnections">0</div>
+          <div class="stat-label">Viewers</div>
+          <div class="stat-icon">👁️</div>
+        </div>
+      </div>
+
+      <!-- Alert Rate Gauge -->
+      <div class="panel gauge-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><span class="panel-icon">📈</span> Alert Rate</h2>
+        </div>
+        <div class="gauge-container">
+          <div class="gauge-bar-track">
+            <div class="gauge-bar-fill" id="alertRateFill" style="width: 0%"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>Safe</span>
+            <span id="alertRateLabel">0%</span>
+            <span>High Risk</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video File Analysis Panel -->
+      <div class="panel video-upload-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><span class="panel-icon">🎬</span> Video File Analysis</h2>
+        </div>
+        <!-- Hidden native file input -->
+        <input type="file" id="videoFileInput" accept="video/mp4,video/avi,video/x-matroska,video/quicktime,video/*" style="display:none" onchange="onVideoFileSelected(this)" />
+        <div class="video-input-box">
+          <div class="video-drop-zone" id="videoDropZone" onclick="document.getElementById('videoFileInput').click()">
+            <div class="drop-zone-content" id="dropZoneContent">
+              <span class="drop-zone-icon">📂</span>
+              <span class="drop-zone-text">Click to browse or drag & drop a video file</span>
+              <span class="drop-zone-hint">.mp4, .avi, .mkv supported</span>
+            </div>
+          </div>
+          <button id="btnAnalyzeVideo" class="btn-analyze" onclick="triggerVideoUpload()" disabled>Analyze Video</button>
+        </div>
+        <div id="videoAnalysisStatus" class="video-analysis-status hidden"></div>
+      </div>
+    </section>
+
+    <!-- ── Right Column: Event Feed ───────────────────────────────────────── -->
+    <section class="right-panel">
+      <div class="panel events-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <span class="panel-icon">📋</span> Detection Events
+          </h2>
+          <div class="event-filter">
+            <button class="filter-btn active" id="filterAll" onclick="setFilter('all')">All</button>
+            <button class="filter-btn" id="filterSuspicious" onclick="setFilter('suspicious')">🚨 Suspicious</button>
+            <button class="filter-btn" id="filterNormal" onclick="setFilter('normal')">✅ Normal</button>
+            <button class="filter-btn filter-btn--clear" onclick="clearHistory()" title="Clear all events">🗑️ Clear</button>
+          </div>
+        </div>
+        <div class="events-list" id="eventsList">
+          <div class="events-empty" id="eventsEmpty">
+            <div class="empty-icon">👁️</div>
+            <p>Monitoring in progress...</p>
+            <p class="empty-sub">Events will appear here when motion is detected</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Toast Notification ────────────────────────────────────────────────── -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ── Event Detail Modal ────────────────────────────────────────────────── -->
+  <div class="modal-backdrop hidden" id="modalBackdrop" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Event Detail</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

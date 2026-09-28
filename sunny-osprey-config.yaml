@@ -1,58 +1,82 @@
-# Sunny Osprey Configuration File
-# This file configures the Sunny Osprey security camera analysis system
+# Sunny Osprey Configuration File - Webcam Edition v2.0
+# Adapted for: 16GB RAM, RTX 2050 4GB VRAM, single laptop webcam
+# LLM Backend: Ollama (gemma3n:e2b with Q4_K_M quantization, ~3.5GB VRAM)
 
-# MQTT Configuration
+# ── MQTT (kept for future Frigate integration) ──────────────────────────────
 mqtt:
-  enabled: true
+  enabled: false        # Disabled in webcam mode (no Frigate)
   host: mqtt
   port: 1883
   topic: frigate/events
 
-# Frigate API Configuration
+# ── Frigate API (disabled in webcam mode) ───────────────────────────────────
 frigate:
   api_base_url: http://frigate:5000
 
-# Camera Filtering
-# List of camera names to process. If empty or not specified, all cameras will be processed.
-# Example: ["LPR", "FRONT_DOOR", "BACKYARD"]
+# ── Camera Filtering (Frigate mode only) ────────────────────────────────────
 cameras:
-  enabled_cameras:
-    # - LPR
-    # - FRONT_DOOR
-    # - BACKYARD
-    # - GARAGE
+  enabled_cameras: []   # Empty = all cameras
 
-# LLM Configuration
+# ── Webcam Configuration ────────────────────────────────────────────────────
+webcam:
+  device_id: 0          # 0 = default/built-in webcam, 1 = external
+  fps: 15               # Capture FPS (higher = smoother but more CPU)
+  width: 1280           # Resolution (1280x720 = HD, good for detection)
+  height: 720
+
+# ── Motion Detection (MOG2 Background Subtraction) ──────────────────────────
+motion:
+  min_area: 1500         # Minimum contour area in pixels to trigger
+                         # Tune: lower = more sensitive (more false triggers)
+                         #       higher = less sensitive (may miss subtle motion)
+  sensitivity: 50        # MOG2 varThreshold: lower = more sensitive
+  cooldown_seconds: 12.0 # Minimum seconds between consecutive LLM inferences
+                         # Prevents hammering the GPU during sustained motion
+  clip_duration_seconds: 5  # Seconds of pre-event video to buffer
+
+# ── Ollama LLM Backend ───────────────────────────────────────────────────────
+ollama:
+  host: http://localhost:11434   # Ollama API (Docker exposes on localhost)
+  model: llava-phi3              # Multimodal vision model (3.8B, ~2.9GB VRAM)
+  timeout: 60                    # Max seconds to wait for inference response
+
+# ── LLM Configuration ───────────────────────────────────────────────────────
 llm:
-  prompt_file: /app/prompt.txt
-  model_name: gemma-3n-E2B-it
-  max_new_tokens: 500
-  # max_memory is optional - uncomment and adjust if you need to control memory allocation
-  # max_memory:
-  #   0: "10GB"  # GPU memory limit
-  #   cpu: "4GB"  # CPU memory limit for fallback
+  backend: ollama               # "ollama" (4GB VRAM) or "huggingface" (needs 9GB+)
+  prompt_file: prompt.txt
+  model_name: llava-phi3
+  max_new_tokens: 300
+  load_in_4bit: false
 
-# Alert Configuration (Optional)
-# Configure alert systems to receive notifications about security events
-# Comment out or remove entire sections to disable alerts
+# ── Dashboard ────────────────────────────────────────────────────────────────
+dashboard:
+  url: http://localhost:8080    # Dashboard API URL (where webcam_capture.py posts events)
+
+# ── Alert Configuration ──────────────────────────────────────────────────────
 alerts:
-  # Global alert settings
-  send_all_activities: false  # Set to true to send all activities, false for suspicious only
-  
+  backend: all                  # "all", "ntfy", "telegram", or "grafana"
+  send_all_activities: false    # true = alert on ALL events, false = suspicious only
+
+  # Phone Push Notification & Alarm (ntfy.sh - Zero Setup, Free Mobile App)
+  # Install 'ntfy' on phone from Play Store or App Store and subscribe to this topic
+  ntfy:
+    topic: sunny-osprey-security-alert
+    server: https://ntfy.sh
+
   # Telegram Bot Alerts (Optional)
   telegram:
     bot_token: ${TELEGRAM_BOT_TOKEN}
     chat_id: ${TELEGRAM_CHAT_ID}
-  
-  # Grafana IRM (Incident Response Management) alerts (Optional)
+
+  # Grafana IRM (Optional)
   grafana:
     url: ${GRAFANA_URL}
     api_key: ${GRAFANA_API_KEY}
 
-# Logging Configuration
+# ── Logging ──────────────────────────────────────────────────────────────────
 logging:
   level: INFO
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-# Version
-version: 1.0.0 
+# ── Version ──────────────────────────────────────────────────────────────────
+version: 2.0.0

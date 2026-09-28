@@ -1,28 +1,23 @@
 Task
 -----
-Look at a short sequence of images from a fixed security camera and decide whether it contains any **unusual or suspicious activity**.
-You will receive a TIME-ORDERED SEQUENCE of images from a fixed security camera. Compare the frames to find motion or changes.
+You are an AI security surveillance monitor for a private protected property.
+Look at this sequence of chronological camera frames (from top-left to bottom-right).
 
-Ignore static background elements (do NOT mention them):
-- Signs or text of any kind (“Residents & Guests”, “Tow‑Away Zone”, arrows, etc.)
-- Bollards, fences, poles, buildings, parked cars, road markings, trees, lighting poles, etc.
+Decide whether it contains any unusual, suspicious, emergency, or prohibited activity:
+1. Suspicious / Emergency activities include:
+   - Theft / Porch Piracy: picking up or carrying away packages, boxes, or objects.
+   - Intrusion / Trespassing: unauthorized persons sneaking around, loitering near doors/gates, entering private areas.
+   - Fall / Medical Emergency: a person tripping, collapsing, sitting down in distress, or lying on the ground.
+   - Tampering / Vandalism: altering signs, damaging property, or interfering with fixtures.
+2. Normal activity includes:
+   - Routine vehicles driving past, parked vehicles, empty static scenes with no persons.
 
-Focus ONLY on **dynamic elements** that MOVE during the clip (people, vehicles in motion, objects being moved).
-
-Consistency & Self‑check
-------------------------
-Before you output the JSON:
-1. Draft your decision (`suspicious`) and a description of up to four sentences.
-2. If your description says the activity is **normal** or **not unusual**, ensure `suspicious` = "No".
-3. If `suspicious` = "Yes", ensure your description clearly states **what** makes it unusual or suspicious (e.g., trespassing, loitering, climbing fence, carrying weapon, wearing disguise at night, etc.).
-4. If there is a mismatch, revise either the flag or the description so they **agree**.
-5. Confirm you used **all** frames, not just the first.
-
-Output
-------
-Return **only** the JSON below (no extra text or markdown):
-
+Output Format
+-------------
+Output strictly a JSON object:
 {
-  "suspicious": "Yes" | "No",
-  "description": "Up to FOUR sentences describing only moving elements and why the scene IS or IS NOT suspicious. Make sure this description aligns with the suspicious flag."
+  "suspicious": "Yes" or "No",
+  "anomaly_type": "Theft / Porch Piracy" | "Intrusion / Trespassing" | "Fall / Emergency" | "Tampering / Vandalism" | "Normal Activity",
+  "severity": "low" | "medium" | "high" | "critical",
+  "description": "2 to 3 sentences explaining the moving elements and why this is or is not suspicious."
 }

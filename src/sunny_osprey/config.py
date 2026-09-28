@@ -5,8 +5,16 @@ Configuration management for Sunny Osprey.
 import os
 import yaml
 from typing import Dict, Any, List, Optional
-import logging
 from dotenv import load_dotenv
+import logging
+import sys
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 
 class SunnyOspreyConfig:
@@ -88,15 +96,35 @@ class SunnyOspreyConfig:
             'cameras': {
                 'enabled_cameras': []
             },
+            # ── Webcam (laptop camera) settings ────────────────────────────
+            'webcam': {
+                'device_id': 0,
+                'fps': 15,
+                'width': 1280,
+                'height': 720,
+            },
+            # ── Motion detection (MOG2 pre-filter) ─────────────────────────
+            'motion': {
+                'min_area': 1500,           # Minimum pixel area to trigger
+                'sensitivity': 50,          # MOG2 varThreshold (lower = more sensitive)
+                'cooldown_seconds': 12.0,   # Seconds between LLM calls
+                'clip_duration_seconds': 5, # Pre-event buffer duration
+            },
+            # ── Ollama LLM backend ──────────────────────────────────────────
+            'ollama': {
+                'host': self._get_env_var('OLLAMA_HOST', 'http://localhost:11434'),
+                'model': self._get_env_var('OLLAMA_MODEL', 'gemma3n:e2b'),
+                'timeout': 180,
+            },
             'llm': {
+                'backend': 'ollama',        # 'ollama' or 'huggingface'
                 'prompt_file': '/app/prompt.txt',
-                'model_name': 'gemma-3n-E2B-it',
+                'model_name': 'gemma3n:e2b',
                 'max_new_tokens': 500,
-                # max_memory is optional - only add if specified in config file
-                # Example:
-                # max_memory:
-                #   0: "10GB"  # GPU memory limit
-                #   cpu: "4GB"  # CPU memory limit for fallback
+            },
+            # ── Dashboard ───────────────────────────────────────────────────
+            'dashboard': {
+                'url': self._get_env_var('DASHBOARD_URL', 'http://localhost:8080'),
             },
             'alerts': {
                 'send_all_activities': False,
@@ -113,7 +141,7 @@ class SunnyOspreyConfig:
                 'level': 'INFO',
                 'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
             },
-            'version': '1.0.0'
+            'version': '2.0.0'
         }
     
     def _setup_logging(self):
@@ -142,7 +170,23 @@ class SunnyOspreyConfig:
     def get_llm_config(self) -> Dict[str, Any]:
         """Get LLM configuration."""
         return self.config.get('llm', {})
-    
+
+    def get_ollama_config(self) -> Dict[str, Any]:
+        """Get Ollama configuration."""
+        return self.config.get('ollama', {})
+
+    def get_webcam_config(self) -> Dict[str, Any]:
+        """Get webcam configuration."""
+        return self.config.get('webcam', {})
+
+    def get_motion_config(self) -> Dict[str, Any]:
+        """Get motion detection configuration."""
+        return self.config.get('motion', {})
+
+    def get_dashboard_config(self) -> Dict[str, Any]:
+        """Get dashboard configuration."""
+        return self.config.get('dashboard', {})
+
     def get_alerts_config(self) -> Dict[str, Any]:
         """Get alerts configuration."""
         return self.config.get('alerts', {})
