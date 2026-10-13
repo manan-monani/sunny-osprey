@@ -356,8 +356,9 @@ async def health_check():
     ollama_ok = False
     try:
         import requests as _requests
+        path = "/health" if os.getenv("LLM_API", "ollama").lower() == "openai" else "/api/tags"
         resp = _requests.get(
-            f"{os.getenv('OLLAMA_HOST', 'http://ollama:11434')}/api/tags",
+            f"{os.getenv('OLLAMA_HOST', 'http://ollama:11434')}{path}",
             timeout=3,
         )
         ollama_ok = resp.status_code == 200

@@ -34,17 +34,23 @@ motion:
                          # Prevents hammering the GPU during sustained motion
   clip_duration_seconds: 5  # Seconds of pre-event video to buffer
 
-# ── Ollama LLM Backend ───────────────────────────────────────────────────────
+# ── LLM Server ───────────────────────────────────────────────────────────────
+# Default: Gemma 3n E2B (Q4_K_M + vision projector) served by llama.cpp in Docker ("llm" service).
+# Ollama's gemma3n build is text-only, so it cannot look at camera frames; llama.cpp can.
+# Inside Docker the OLLAMA_HOST / LLM_API env vars from docker-compose.webcam.yaml override these.
+# To use Ollama instead: api: ollama, host: http://localhost:11434, model: llava-phi3
+#   and start it with: docker compose -f docker-compose.webcam.yaml --profile ollama up -d
 ollama:
-  host: http://localhost:11434   # Ollama API (Docker exposes on localhost)
-  model: llava-phi3              # Multimodal vision model (3.8B, ~2.9GB VRAM)
-  timeout: 60                    # Max seconds to wait for inference response
+  host: http://localhost:8081    # llama.cpp server as exposed on this laptop
+  api: openai                    # "openai" (llama.cpp) or "ollama"
+  model: gemma-3n-E2B-it
+  timeout: 120                   # Max seconds to wait for inference response
 
 # ── LLM Configuration ───────────────────────────────────────────────────────
 llm:
-  backend: ollama               # "ollama" (4GB VRAM) or "huggingface" (needs 9GB+)
+  backend: ollama               # "ollama" = HTTP model server (above), "huggingface" = in-process (needs 9GB+)
   prompt_file: prompt.txt
-  model_name: llava-phi3
+  model_name: gemma-3n-E2B-it
   max_new_tokens: 300
   load_in_4bit: false
 

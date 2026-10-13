@@ -58,6 +58,9 @@ class OllamaInferenceEngine:
         )
         self.timeout = ollama_config.get("timeout", 60)
         self.max_new_tokens = llm_config.get("max_new_tokens", 350)
+        # "ollama": Ollama's /api/chat. "openai": OpenAI-compatible /v1/chat/completions, as served by
+        # llama.cpp's llama-server (the only local runtime that gives Gemma 3n image input on 4 GB VRAM).
+        self.api = (os.getenv("LLM_API") or ollama_config.get("api", "ollama")).lower()
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(
@@ -66,6 +69,9 @@ class OllamaInferenceEngine:
 
     def _initialize_model(self):
         """Check Ollama server connectivity and model availability."""
+        if self.api == "openai":
+            self._wait_for_openai_server()
+            return
         try:
             resp = requests.get(f"{self.host}/api/tags", timeout=5)
             resp.raise_for_status()
@@ -87,6 +93,43 @@ class OllamaInferenceEngine:
             )
         except Exception as e:
             self.logger.warning(f"Ollama health check warning: {e}")
+
+    def _wait_for_openai_server(self, max_wait: float = 300.0):
+        """Wait until llama-server reports healthy (it answers 503 while the model is loading)."""
+        deadline = time.monotonic() + max_wait
+        while True:
+            try:
+                if requests.get(f"{self.host}/health", timeout=5).status_code == 200:
+                    self.logger.info(f"✅ LLM server ready at {self.host} (model: {self.model})")
+                    return
+            except requests.exceptions.RequestException:
+                pass
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"LLM server at {self.host} not ready after {max_wait:.0f}s. Is it running?")
+            self.logger.info(f"Waiting for LLM server at {self.host}...")
+            time.sleep(5)
+
+    def _chat_openai(self, system_prompt: str, user_prompt: str, encoded_image: str) -> str:
+        """Send one chat request to an OpenAI-compatible endpoint and return the reply text."""
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}},
+                    ],
+                },
+            ],
+            "max_tokens": self.max_new_tokens,
+            "temperature": 0.0,  # Deterministic security evaluation
+            "response_format": {"type": "json_object"},  # grammar-constrained, always parseable
+        }
+        resp = requests.post(f"{self.host}/v1/chat/completions", json=payload, timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
 
     def _create_frame_grid(
         self,
@@ -230,18 +273,20 @@ class OllamaInferenceEngine:
 
         try:
             start = time.perf_counter()
-            resp = requests.post(
-                f"{self.host}/api/chat",
-                json=payload,
-                timeout=self.timeout,
-            )
-            resp.raise_for_status()
+            if self.api == "openai":
+                raw_response = self._chat_openai(system_prompt, user_prompt, encoded_image)
+            else:
+                resp = requests.post(
+                    f"{self.host}/api/chat",
+                    json=payload,
+                    timeout=self.timeout,
+                )
+                resp.raise_for_status()
+                raw_response = resp.json().get("message", {}).get("content", "")
             elapsed = time.perf_counter() - start
 
-            data = resp.json()
-            raw_response = data.get("message", {}).get("content", "")
             self.logger.info(
-                f"Ollama inference completed in {elapsed:.2f}s ({self.model})"
+                f"LLM inference completed in {elapsed:.2f}s ({self.model})"
             )
 
             parsed = self._parse_json_response(raw_response)
@@ -425,7 +470,8 @@ class OllamaInferenceEngine:
     def health_check(self) -> bool:
         """Check if Ollama server is reachable."""
         try:
-            resp = requests.get(f"{self.host}/api/tags", timeout=3)
+            path = "/health" if self.api == "openai" else "/api/tags"
+            resp = requests.get(f"{self.host}{path}", timeout=3)
             return resp.status_code == 200
         except Exception:
             return False

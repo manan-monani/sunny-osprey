@@ -57,7 +57,11 @@ class WebcamPipeline:
 
         # Webcam settings
         webcam_cfg = self.config.get("webcam", {})
-        self.device_id = webcam_cfg.get("device_id", 0)
+        # A device index (0 = built-in webcam) or a stream URL such as rtsp://mediamtx:8554/webcam,
+        # which is how the camera reaches the pipeline when it runs inside Docker.
+        self.device_id = os.getenv("WEBCAM_SOURCE") or webcam_cfg.get("device_id", 0)
+        if isinstance(self.device_id, str) and self.device_id.isdigit():
+            self.device_id = int(self.device_id)
         self.fps = webcam_cfg.get("fps", 15)
         self.width = webcam_cfg.get("width", 1280)
         self.height = webcam_cfg.get("height", 720)
@@ -69,8 +73,8 @@ class WebcamPipeline:
 
         # Dashboard API URL (for posting events)
         dashboard_cfg = self.config.get("dashboard", {})
-        self.dashboard_url = dashboard_cfg.get(
-            "url", os.getenv("DASHBOARD_URL", "http://localhost:8080")
+        self.dashboard_url = os.getenv("DASHBOARD_URL") or dashboard_cfg.get(
+            "url", "http://localhost:8080"
         )
 
         # Initialize components
@@ -112,7 +116,10 @@ class WebcamPipeline:
     def _init_camera(self) -> bool:
         """Initialize OpenCV video capture for webcam."""
         self.logger.info(f"Opening webcam device {self.device_id}...")
-        self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_DSHOW)  # CAP_DSHOW = Windows
+        if isinstance(self.device_id, str):
+            self.cap = cv2.VideoCapture(self.device_id)  # network stream (FFmpeg backend)
+        else:
+            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_DSHOW)  # CAP_DSHOW = Windows
 
         if not self.cap.isOpened():
             # Fallback without DSHOW backend
@@ -228,9 +235,13 @@ class WebcamPipeline:
         self.logger.info("🔌 Checking Ollama connectivity...")
         self.inference_engine._initialize_model()
 
-        # Open camera
-        if not self._init_camera():
-            return
+        # Open camera (a stream may not be published yet, so keep trying for URLs)
+        while not self._init_camera():
+            if not isinstance(self.device_id, str):
+                return
+            self.logger.info("Waiting for the camera stream (publish it at http://localhost:8889/webcam/publish)...")
+            time.sleep(5)
+        read_failures = 0
 
         self.running = True
         frame_interval = 1.0 / self.fps
@@ -252,9 +263,18 @@ class WebcamPipeline:
 
                 ret, frame = self.cap.read()
                 if not ret:
-                    self.logger.warning("Failed to read frame, retrying...")
-                    time.sleep(0.1)
+                    read_failures += 1
+                    if read_failures % 50 == 0:
+                        # Camera unplugged / stream ended: reopen instead of retrying a dead handle
+                        self.logger.warning("Camera stopped delivering frames, reconnecting...")
+                        self.cap.release()
+                        time.sleep(2)
+                        self._init_camera()
+                    else:
+                        self.logger.debug("Failed to read frame, retrying...")
+                        time.sleep(0.1)
                     continue
+                read_failures = 0
 
                 last_frame_time = now
 

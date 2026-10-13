@@ -1,0 +1,22 @@
+# MediaMTX: lets the browser publish the laptop webcam over WebRTC and re-serves it as RTSP
+# for the dockerized webcam pipeline (Docker Desktop on Windows cannot pass a USB webcam into containers).
+# Publish page: http://localhost:8889/webcam/publish (used by docker-compose.webcam.yaml)
+logLevel: info
+
+rtsp: yes
+rtspAddress: :8554
+rtmp: no
+hls: no
+srt: no
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+# The browser runs on the host, so ICE candidates must point at the host's loopback
+webrtcAdditionalHosts: [127.0.0.1]
+webrtcIPsFromInterfaces: no
+
+paths:
+  webcam:
+    source: publisher

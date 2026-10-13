@@ -1,0 +1,3 @@
+# Model weights and GGUFs (~15 GB), rebuilt by the model-prep service
+models/
+.env
