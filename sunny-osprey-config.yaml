@@ -66,14 +66,15 @@ dashboard:
 
 # ── Alert Configuration ──────────────────────────────────────────────────────
 alerts:
-  backend: all                  # "all", "ntfy", "telegram", or "grafana"
+  backend: ntfy                 # "ntfy", "telegram", "grafana", "all", or "none" (dashboard only)
   send_all_activities: false    # true = alert on ALL events, false = suspicious only
 
-  # Phone Push Notification & Alarm (ntfy.sh - Zero Setup, Free Mobile App)
-  # Install 'ntfy' on phone from Play Store or App Store and subscribe to this topic
+  # Private alerts: a self-hosted ntfy server (the "ntfy" service in docker-compose.webcam.yaml),
+  # reachable only from this laptop. Open http://localhost:8090/sunny-osprey-1f9d977024be in a browser
+  # tab and allow notifications. Nothing is sent to the public ntfy.sh.
   ntfy:
-    topic: sunny-osprey-security-alert
-    server: https://ntfy.sh
+    topic: sunny-osprey-1f9d977024be
+    server: http://localhost:8090   # inside Docker the NTFY_SERVER env var points to http://ntfy
 
   # Telegram Bot Alerts (Optional)
   telegram:

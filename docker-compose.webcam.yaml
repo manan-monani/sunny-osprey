@@ -6,6 +6,7 @@
 #   - mediamtx:  receives the webcam from a browser tab (WebRTC) and re-serves it as RTSP
 #   - webcam:    capture -> MOG2 motion -> frame buffer -> Gemma 3n -> alerts (headless)
 #   - dashboard: FastAPI web UI + real-time event feed
+#   - ntfy:      private alert server; alerts show up in a browser tab (nothing goes to ntfy.sh)
 #   - mqtt:      MQTT broker (for future Frigate integration)
 #
 # Docker Desktop on Windows cannot pass a USB webcam into containers, so the browser publishes it:
@@ -15,6 +16,8 @@
 #        docker compose -f docker-compose.webcam.yaml up -d --build
 #   3. Open http://localhost:8889/webcam/publish, allow the camera and click "Publish" (keep the tab open)
 #   4. Dashboard: http://localhost:8080   |   logs: docker compose -f docker-compose.webcam.yaml logs -f webcam
+#   5. Alerts: open the ntfy topic URL from sunny-osprey-config.yaml (http://localhost:8090/<topic>)
+#      and allow browser notifications
 #
 # Running the capture natively on Windows instead (with a local preview window) still works:
 #   pip install -r requirements-native.txt && python src/sunny_osprey/webcam_capture.py
@@ -146,6 +149,8 @@ services:
       - LLM_API=openai
       - DASHBOARD_URL=http://dashboard:8080
       - ALERT_BACKEND=${ALERT_BACKEND:-}   # e.g. ALERT_BACKEND=none to only show events on the dashboard
+      - NTFY_SERVER=http://ntfy:80
+      - TZ=${TZ:-UTC}   # local time in logs/alerts; set TZ in .env (e.g. TZ=Asia/Kolkata)
       # One 720p stream needs few threads; by default FFmpeg/OpenCV/OpenBLAS start one per CPU core
       # (57 threads here), each with its own buffers
       - OPENCV_FFMPEG_CAPTURE_OPTIONS=threads;2
@@ -165,6 +170,8 @@ services:
       mediamtx:
         condition: service_started
       dashboard:
+        condition: service_started
+      ntfy:
         condition: service_started
     networks:
       - sunny-osprey-network
@@ -211,6 +218,7 @@ services:
       - OLLAMA_HOST=http://llm:8080
       - LLM_API=openai
       - EVENTS_STORE_PATH=/app/events_store
+      - TZ=${TZ:-UTC}
     volumes:
       - ./events_store:/app/events_store:rw        # Shared event storage
       - ./src:/app/src:ro                          # Code from the working tree (restart to apply edits)
@@ -254,6 +262,27 @@ services:
       retries: 30
       start_period: 60s   # Model pull can take time
 
+  # ─── Private Alert Server (ntfy, self-hosted) ─────────────────────────────
+  # Web app + notifications at http://localhost:8090; bound to this laptop only. Messages are kept
+  # for 12 h, so alerts raised while the tab was closed show up when it is reopened.
+  ntfy:
+    image: binwiederhier/ntfy:v2.28.0
+    container_name: sunny-osprey-ntfy
+    mem_limit: 64m
+    command: ["serve"]
+    environment:
+      - NTFY_BASE_URL=http://localhost:8090
+      - NTFY_CACHE_FILE=/var/cache/ntfy/cache.db
+      - NTFY_CACHE_DURATION=12h
+      - NTFY_ENABLE_LOGIN=false
+    volumes:
+      - ntfy_cache:/var/cache/ntfy
+    ports:
+      - "127.0.0.1:8090:80"
+    networks:
+      - sunny-osprey-network
+    restart: unless-stopped
+
   # ─── MQTT Broker (for future Frigate integration) ──────────────────────────
   mqtt:
     image: eclipse-mosquitto:2.0.22
@@ -275,3 +304,5 @@ networks:
 volumes:
   ollama_models:
     driver: local    # Persists across container restarts
+  ntfy_cache:
+    driver: local

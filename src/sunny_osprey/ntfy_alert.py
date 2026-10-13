@@ -30,8 +30,9 @@ class NtfyAlert:
         self.topic = self.config.get("topic") or os.getenv(
             "NTFY_TOPIC", "sunny-osprey-security-alerts"
         )
-        self.server = self.config.get("server") or os.getenv(
-            "NTFY_SERVER", "https://ntfy.sh"
+        # NTFY_SERVER wins so the same config works natively (localhost) and inside Docker (ntfy service)
+        self.server = (
+            os.getenv("NTFY_SERVER") or self.config.get("server") or "https://ntfy.sh"
         ).rstrip("/")
         self.enabled = bool(self.topic and self.topic.strip())
 
