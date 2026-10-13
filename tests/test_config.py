@@ -1,5 +1,5 @@
 """
-Tests for the Sunny Osprey configuration module.
+Tests for the Gazeguard configuration module.
 """
 
 import pytest

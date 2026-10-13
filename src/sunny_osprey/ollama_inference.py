@@ -1,5 +1,5 @@
 """
-Ollama Inference Client for Sunny Osprey
+Ollama Inference Client for Gazeguard
 
 Uses Ollama's vision API (default: moondream / llava-phi3) to detect
 anomalies and suspicious activities from video frames or webcam feeds.

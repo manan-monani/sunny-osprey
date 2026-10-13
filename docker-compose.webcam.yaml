@@ -1,4 +1,4 @@
-# Sunny Osprey - Webcam Edition Docker Compose
+# Gazeguard - Webcam Edition Docker Compose
 # Designed for: 16GB RAM, RTX 2050 4GB VRAM, single laptop webcam. Everything runs in Docker.
 #
 # Architecture:
@@ -16,13 +16,16 @@
 #        docker compose -f docker-compose.webcam.yaml up -d --build
 #   3. Open http://localhost:8889/webcam/publish, allow the camera and click "Publish" (keep the tab open)
 #   4. Dashboard: http://localhost:8080   |   logs: docker compose -f docker-compose.webcam.yaml logs -f webcam
-#   5. Alerts: open the ntfy topic URL from sunny-osprey-config.yaml (http://localhost:8090/<topic>)
+#   5. Alerts: open the ntfy topic URL from gazeguard-config.yaml (http://localhost:8090/<topic>)
 #      and allow browser notifications
 #
 # Running the capture natively on Windows instead (with a local preview window) still works:
 #   pip install -r requirements-native.txt && python src/sunny_osprey/webcam_capture.py
-#   (it reaches the model at http://localhost:8081 per sunny-osprey-config.yaml); skip the webcam service:
+#   (it reaches the model at http://localhost:8081 per gazeguard-config.yaml); skip the webcam service:
 #   docker compose -f docker-compose.webcam.yaml up -d llm dashboard
+
+# Compose project name: containers, volumes and the network are all prefixed gazeguard
+name: gazeguard
 
 x-gpu: &gpu
   deploy:
@@ -38,7 +41,7 @@ services:
   # ─── Gemma 3n LLM Server (llama.cpp) ──────────────────────────────────────
   llm:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
-    container_name: sunny-osprey-llm
+    container_name: gazeguard-llm
     <<: *gpu
     # RAM cap: ~2 GB of the model (the token / per-layer embedding tables) stays on the CPU as a
     # memory-mapped file, yet each request reads only a few MB of rows. Under this cap the kernel keeps
@@ -89,7 +92,7 @@ services:
       model-sync:
         condition: service_completed_successfully
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -102,7 +105,7 @@ services:
   # Copies ./models/gguf/*.gguf into the llm_models volume when missing or changed (no-op otherwise)
   model-sync:
     image: python:3.12-slim
-    container_name: sunny-osprey-model-sync
+    container_name: gazeguard-model-sync
     volumes:
       - ./models/gguf:/src:ro
       - llm_models:/models
@@ -145,7 +148,7 @@ services:
   # ─── Webcam Relay (browser -> RTSP) ───────────────────────────────────────
   mediamtx:
     image: bluenviron/mediamtx:1.21.0
-    container_name: sunny-osprey-mediamtx
+    container_name: gazeguard-mediamtx
     mem_limit: 128m
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
@@ -155,7 +158,7 @@ services:
       - "127.0.0.1:8189:8189/tcp"
       - "127.0.0.1:8554:8554"        # RTSP (e.g. view with VLC: rtsp://localhost:8554/webcam)
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
 
   # ─── Webcam Pipeline (headless) ───────────────────────────────────────────
@@ -163,11 +166,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sunny-osprey-app
-    container_name: sunny-osprey-webcam
+    image: gazeguard-app
+    container_name: gazeguard-webcam
     mem_limit: 768m   # 720p/1080p webcams use ~250 MB; headroom for 4K sources
     command: ["/venv/bin/python", "src/sunny_osprey/webcam_capture.py",
-              "--config", "/app/sunny-osprey-config.yaml", "--no-preview"]
+              "--config", "/app/gazeguard-config.yaml", "--no-preview"]
     environment:
       - PYTHONUNBUFFERED=1
       - WEBCAM_SOURCE=rtsp://mediamtx:8554/webcam
@@ -188,7 +191,7 @@ services:
         required: false
     volumes:
       - ./src:/app/src:ro
-      - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+      - ./gazeguard-config.yaml:/app/gazeguard-config.yaml:ro
       - ./prompt.txt:/app/prompt.txt:ro
       - ./system_prompt.txt:/app/system_prompt.txt:ro
     depends_on:
@@ -201,14 +204,14 @@ services:
       ntfy:
         condition: service_started
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
 
   # ─── Clip accuracy test (profile: test) ───────────────────────────────────
   # Classifies the curated clips in tests/data with the running llm service; fails on any miss.
   #   docker compose -f docker-compose.webcam.yaml --profile test run --rm clip-tests
   clip-tests:
-    image: sunny-osprey-app
+    image: gazeguard-app
     environment:
       - OLLAMA_HOST=http://llm:8080
       - LLM_API=openai
@@ -216,7 +219,7 @@ services:
       - ./src:/app/src:ro
       - ./tests:/app/tests:ro
       - ./tests/data:/app/test_videos:ro
-      - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+      - ./gazeguard-config.yaml:/app/gazeguard-config.yaml:ro
       - ./prompt.txt:/app/prompt.txt:ro
       - ./system_prompt.txt:/app/system_prompt.txt:ro
       - ./pytest.ini:/app/pytest.ini:ro
@@ -225,7 +228,7 @@ services:
       llm:
         condition: service_healthy
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     profiles:
       - test
 
@@ -234,8 +237,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sunny-osprey-app
-    container_name: sunny-osprey-dashboard
+    image: gazeguard-app
+    container_name: gazeguard-dashboard
     mem_limit: 256m
     command: ["/venv/bin/python", "-m", "uvicorn", "sunny_osprey.dashboard:app", "--host", "0.0.0.0", "--port", "8080"]
     ports:
@@ -250,14 +253,14 @@ services:
       - ./events_store:/app/events_store:rw        # Shared event storage
       - ./src:/app/src:ro                          # Code from the working tree (restart to apply edits)
       - ./dashboard:/app/dashboard:ro              # Dashboard static files
-      - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+      - ./gazeguard-config.yaml:/app/gazeguard-config.yaml:ro
       - ./prompt.txt:/app/prompt.txt:ro
       - ./system_prompt.txt:/app/system_prompt.txt:ro
     depends_on:
       llm:
         condition: service_healthy
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
 
   # ─── Ollama (optional, profile: ollama) ───────────────────────────────────
@@ -267,8 +270,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ollama
-    image: sunny-osprey-ollama
-    container_name: sunny-osprey-ollama
+    image: gazeguard-ollama
+    container_name: gazeguard-ollama
     <<: *gpu
     ports:
       - "11434:11434"   # Ollama REST API (accessible from Windows host)
@@ -278,7 +281,7 @@ services:
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llava-phi3}
       - OLLAMA_KEEP_ALIVE=-1          # Keep model loaded in VRAM indefinitely
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
     profiles:
       - ollama
@@ -294,7 +297,7 @@ services:
   # for 12 h, so alerts raised while the tab was closed show up when it is reopened.
   ntfy:
     image: binwiederhier/ntfy:v2.28.0
-    container_name: sunny-osprey-ntfy
+    container_name: gazeguard-ntfy
     mem_limit: 64m
     command: ["serve"]
     environment:
@@ -307,13 +310,13 @@ services:
     ports:
       - "127.0.0.1:8090:80"
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
 
   # ─── MQTT Broker (for future Frigate integration) ──────────────────────────
   mqtt:
     image: eclipse-mosquitto:2.0.22
-    container_name: sunny-osprey-mqtt
+    container_name: gazeguard-mqtt
     mem_limit: 64m
     ports:
       - "127.0.0.1:1883:1883"
@@ -321,11 +324,11 @@ services:
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
 
 networks:
-  sunny-osprey-network:
+  gazeguard-network:
     driver: bridge
 
 volumes:

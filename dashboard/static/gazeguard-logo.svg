@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke-linejoin="round" stroke-linecap="round" role="img" aria-label="Gazeguard">
+  <rect x="7" y="18" width="36" height="18" rx="4" stroke="#e8f0fe" stroke-width="3"/>
+  <rect x="43" y="21" width="7" height="12" rx="2" fill="#EF9F27"/>
+  <path d="M21 36 V47 H11" stroke="#e8f0fe" stroke-width="3"/>
+  <path d="M54 19 Q59 27 54 35" stroke="#EF9F27" stroke-width="2.5"/>
+  <path d="M58 15 Q65 27 58 39" stroke="#EF9F27" stroke-width="2.5"/>
+</svg>

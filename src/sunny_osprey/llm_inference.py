@@ -76,7 +76,7 @@ class LLMInferenceEngine:
         """Initialize the LLM model (lazy loading)."""
         if self.model is None:
             # Set process name for nvidia-smi display
-            setproctitle.setproctitle("sunny-osprey")
+            setproctitle.setproctitle("gazeguard")
             self.logger.info("Initializing LLM model...")
             
             # Get model name from config or use default

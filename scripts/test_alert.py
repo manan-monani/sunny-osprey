@@ -1,5 +1,5 @@
 """
-Phone Alarm Alert Test Utility for Sunny Osprey
+Phone Alarm Alert Test Utility for Gazeguard
 
 Sends an immediate test alert to verify that your smartphone sounds the alarm!
 
@@ -30,12 +30,12 @@ from sunny_osprey.config import SunnyOspreyConfig
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Test Phone Alarm Alert for Sunny Osprey",
+        description="Test Phone Alarm Alert for Gazeguard",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--config",
-        default="sunny-osprey-config.yaml",
+        default="gazeguard-config.yaml",
         help="Path to configuration file",
     )
     parser.add_argument(
@@ -53,7 +53,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 65)
-    print("🚨 Sunny Osprey — Phone Alarm Test")
+    print("🚨 Gazeguard — Phone Alarm Test")
     print("=" * 65)
 
     config_obj = SunnyOspreyConfig(args.config)
@@ -67,7 +67,7 @@ def main():
     if args.backend:
         alerts_cfg["backend"] = args.backend
 
-    ntfy_topic = alerts_cfg.get("ntfy", {}).get("topic", "sunny-osprey-security-alert")
+    ntfy_topic = alerts_cfg.get("ntfy", {}).get("topic", "gazeguard-security-alert")
     print(f"📲 ntfy.sh Topic: {ntfy_topic}")
     print(f"👉 To receive on your phone:")
     print(f"   1. Install the 'ntfy' app from Google Play Store or Apple App Store.")

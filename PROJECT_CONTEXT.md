@@ -1,4 +1,4 @@
-# Sunny Osprey — Full Project Context
+# Gazeguard — Full Project Context
 
 > **Version:** 2.0.0 (Webcam Edition)  
 > **Authors:** Abylay Ospan, Alsu Ospan (sbnb.io)  
@@ -6,9 +6,9 @@
 
 ---
 
-## 🦅 What Is This Project?
+## 📹 What Is This Project?
 
-**Sunny Osprey** is an AI-powered security surveillance system — a "sixth sense" for security guards. It monitors live camera feeds and uses **Google's Gemma 3n** (or Ollama-hosted vision models) to detect unusual, suspicious, or emergency activity in real time.
+**Gazeguard** (based on [Sunny Osprey](https://github.com/sbnb-io/sunny-osprey)) is an AI-powered security surveillance system — a "sixth sense" for security guards. It monitors live camera feeds and uses **Google's Gemma 3n** (or Ollama-hosted vision models) to detect unusual, suspicious, or emergency activity in real time.
 
 The system is designed to run **entirely locally** on a consumer-grade NVIDIA GPU, ensuring privacy, low latency, data sovereignty, and zero cloud inference costs.
 
@@ -109,13 +109,13 @@ sunny-osprey/
 │   ├── config.yaml
 │   └── yolo_nas_s.onnx           # YOLO-NAS Small (~48MB)
 │
-├── docker-compose.yaml           # Original: MQTT + Sunny Osprey + Frigate
+├── docker-compose.yaml           # Original: MQTT + Gazeguard + Frigate
 ├── docker-compose.webcam.yaml    # Webcam Edition: Ollama + Dashboard + MQTT
 ├── docker-compose.test.yaml      # Test runner
 ├── Dockerfile                    # Main application image (Python 3.11)
 ├── Dockerfile.ollama             # Ollama server image
 │
-├── sunny-osprey-config.yaml      # Main YAML config (webcam edition defaults)
+├── gazeguard-config.yaml         # Main YAML config (webcam edition defaults)
 ├── prompt.txt                    # LLM security analysis prompt
 ├── system_prompt.txt             # LLM system prompt
 ├── requirements.txt              # Docker container dependencies
@@ -268,7 +268,7 @@ sunny-osprey/
 
 | Compose File | Services | Purpose |
 |---|---|---|
-| `docker-compose.yaml` | MQTT, Sunny Osprey, Frigate, MediaMTX, Test Injector | Original 16-camera production setup |
+| `docker-compose.yaml` | MQTT, Gazeguard, Frigate, MediaMTX, Test Injector | Original 16-camera production setup |
 | `docker-compose.webcam.yaml` | Ollama, Dashboard, MQTT | Webcam Edition (Windows laptop) |
 | `docker-compose.test.yaml` | Test runner | Run pytest with GPU access |
 

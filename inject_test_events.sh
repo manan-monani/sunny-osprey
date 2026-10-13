@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Inject Test Events for Sunny Osprey
+# Inject Test Events for Gazeguard
 # This script injects fake MQTT events to trigger analysis of local test files
 
-echo "Injecting test events for Sunny Osprey..."
+echo "Injecting test events for Gazeguard..."
 
 # Test event IDs
 CRIMINAL_EVENT_ID="test_criminal_$(date +%s)"
@@ -70,4 +70,4 @@ done
 
 echo ""
 echo "✅ Test events injected successfully!"
-echo "Check the Sunny Osprey logs to see the analysis results."
+echo "Check the Gazeguard logs to see the analysis results."

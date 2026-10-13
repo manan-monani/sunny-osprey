@@ -1,5 +1,5 @@
 """
-Sunny Osprey Dashboard - FastAPI Web Server
+Gazeguard Dashboard - FastAPI Web Server
 
 Provides:
 - REST API for event ingestion from webcam_capture.py
@@ -32,7 +32,7 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Sunny Osprey Dashboard",
+    title="Gazeguard Dashboard",
     description="Real-time AI security monitoring dashboard",
     version="2.0.0",
 )
@@ -364,7 +364,7 @@ async def get_links():
     alerts_url = None
     try:
         import yaml
-        with open(os.getenv("SUNNY_OSPREY_CONFIG", "/app/sunny-osprey-config.yaml"), encoding="utf-8") as f:
+        with open(os.getenv("GAZEGUARD_CONFIG", "/app/gazeguard-config.yaml"), encoding="utf-8") as f:
             ntfy = (yaml.safe_load(f) or {}).get("alerts", {}).get("ntfy", {})
         if ntfy.get("topic") and ntfy.get("server"):
             alerts_url = f"{ntfy['server'].rstrip('/')}/{ntfy['topic']}"
@@ -401,7 +401,7 @@ async def health_check():
 @app.on_event("startup")
 async def startup_event():
     """Clear old events and start fresh on every new session."""
-    logger.info("🚀 Sunny Osprey Dashboard starting up...")
+    logger.info("🚀 Gazeguard Dashboard starting up...")
 
     # Clear old events from disk so every session starts fresh
     if os.path.exists(EVENTS_STORE):

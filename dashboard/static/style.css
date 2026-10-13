@@ -1,4 +1,4 @@
-/* ── Sunny Osprey Dashboard — Premium Dark Theme ──────────────────────────── */
+/* ── Gazeguard Dashboard — Premium Dark Theme ──────────────────────────── */
 /* Font: Inter (body) + JetBrains Mono (code/data) */
 
 /* ── CSS Variables ──────────────────────────────────────────────────────────── */
@@ -72,8 +72,9 @@ body {
 }
 
 .logo-icon {
-  font-size: 28px;
-  filter: drop-shadow(0 0 8px rgba(79, 156, 249, 0.5));
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.35));
   animation: floatLogo 3s ease-in-out infinite;
 }
 

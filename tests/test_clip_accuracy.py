@@ -1,6 +1,6 @@
 """
 End-to-end accuracy check: the curated clips in tests/data must be classified correctly by the
-model server configured in sunny-osprey-config.yaml (llama.cpp + Gemma 3n by default).
+model server configured in gazeguard-config.yaml (llama.cpp + Gemma 3n by default).
 
 Same code path as the webcam pipeline (frame sampling -> OllamaInferenceEngine.analyze_frames).
 Run with: docker compose -f docker-compose.webcam.yaml --profile test run --rm clip-tests
@@ -14,7 +14,7 @@ import requests
 from sunny_osprey.config import SunnyOspreyConfig
 from sunny_osprey.ollama_inference import OllamaInferenceEngine
 
-CONFIG_PATH = os.getenv("SUNNY_OSPREY_CONFIG", "/app/sunny-osprey-config.yaml")
+CONFIG_PATH = os.getenv("GAZEGUARD_CONFIG", "/app/gazeguard-config.yaml")
 VIDEO_DIR = os.getenv("TEST_VIDEO_DIR", "/app/test_videos")
 
 EXPECTED = {

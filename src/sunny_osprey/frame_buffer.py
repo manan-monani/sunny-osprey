@@ -22,7 +22,7 @@ class FrameBuffer:
     Rolling circular buffer that holds the last N seconds of video frames.
 
     When a motion event is triggered, we sample 10 frames from this buffer
-    to represent the event clip — matching the original Sunny Osprey design
+    to represent the event clip — matching the original Gazeguard design
     that sent "10 evenly spaced frames" to Gemma 3n.
     """
 

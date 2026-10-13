@@ -1,5 +1,5 @@
 """
-Main module for the Sunny Osprey project.
+Main module for the Gazeguard project.
 
 Supports two operational modes:
   1. webcam  - Laptop camera with Ollama LLM (default, 4GB VRAM)
@@ -28,7 +28,7 @@ def run_webcam_pipeline(config_path: str):
     """Run the webcam-based monitoring pipeline."""
     from sunny_osprey.webcam_capture import WebcamPipeline
 
-    print("🦅 Sunny Osprey — AI Security Monitor (Webcam Edition)")
+    print("📹 Gazeguard — AI Security Monitor (Webcam Edition)")
     print("=" * 60)
     print(f"📋 Config: {config_path}")
     print(f"🎥 Mode: Laptop Webcam + Ollama (gemma3n:e2b)")
@@ -46,12 +46,12 @@ def run_webcam_pipeline(config_path: str):
     return 0
 
 
-def run_mqtt_processor(config_path: str = "/app/sunny-osprey-config.yaml"):
+def run_mqtt_processor(config_path: str = "/app/gazeguard-config.yaml"):
     """Run the original MQTT/Frigate event processor."""
     from sunny_osprey.mqtt_processor import FrigateEventProcessor
     from sunny_osprey.config import SunnyOspreyConfig
 
-    print("🦅 Initializing Sunny Osprey — Frigate/MQTT Mode")
+    print("📹 Initializing Gazeguard — Frigate/MQTT Mode")
     print("=" * 60)
 
     config = SunnyOspreyConfig(config_path)
@@ -108,7 +108,7 @@ def run_video_pipeline(config_path: str, input_path: str):
     """Run anomaly detection on a video file or folder."""
     from sunny_osprey.video_processor import VideoFileProcessor
 
-    print("🦅 Sunny Osprey — AI Security Monitor (Video Mode)")
+    print("📹 Gazeguard — AI Security Monitor (Video Mode)")
     print("=" * 60)
     print(f"📋 Config: {config_path}")
     print(f"🎬 Input:  {input_path}")
@@ -138,7 +138,7 @@ def run_video_pipeline(config_path: str, input_path: str):
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Sunny Osprey AI Security Monitor",
+        description="Gazeguard AI Security Monitor",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Modes:
@@ -168,7 +168,7 @@ Modes:
     )
     parser.add_argument(
         "--config",
-        default="sunny-osprey-config.yaml",
+        default="gazeguard-config.yaml",
         help="Path to configuration file",
     )
     parser.add_argument(

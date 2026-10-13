@@ -1,4 +1,4 @@
-# Sunny Osprey - one-click start (Windows). Run via start.bat in the project root.
+# Gazeguard - one-click start (Windows). Run via start.bat in the project root.
 # Starts Docker Desktop if needed, builds the model on first run, starts every service
 # (model server, webcam pipeline, dashboard, private alerts, camera relay) and opens the pages.
 # -NoBrowser: start everything without opening browser tabs (e.g. for running at login).
@@ -14,7 +14,7 @@ $Compose = @("compose", "-f", "docker-compose.webcam.yaml")
 # Camera publish page: H.264 (the pipeline cannot decode the browser's default AV1), 720p@15fps, no microphone
 $PublishUrl = "http://localhost:8889/webcam/publish?video-codec=h264%2F90000&video-width=1280&video-height=720&video-framerate=15&video-bitrate=2500&audio-device=none"
 $DashboardUrl = "http://localhost:8080"
-$Topic = (Select-String -Path "sunny-osprey-config.yaml" -Pattern '^\s+topic:\s*(\S+)' | Select-Object -First 1).Matches.Groups[1].Value
+$Topic = (Select-String -Path "gazeguard-config.yaml" -Pattern '^\s+topic:\s*(\S+)' | Select-Object -First 1).Matches.Groups[1].Value
 $AlertsUrl = "http://localhost:8090/$Topic"
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
@@ -34,7 +34,7 @@ function Wait-Url($url, $name, $timeoutSec) {
     Fail "$name did not become ready within $timeoutSec s. Check: docker compose -f docker-compose.webcam.yaml logs"
 }
 
-Write-Host "Sunny Osprey - AI security monitor (Gemma 3n on llama.cpp)" -ForegroundColor Yellow
+Write-Host "Gazeguard - AI security monitor (Gemma 3n on llama.cpp)" -ForegroundColor Yellow
 
 # 1. Docker Desktop
 Step "Checking Docker"
@@ -81,7 +81,7 @@ if (-not $NoBrowser) {
 
 Write-Host @"
 
-Sunny Osprey is running.
+Gazeguard is running.
   1. Camera tab: allow the camera, click "Publish" and keep that tab open
   2. Alerts tab: click "Grant now" once to get desktop notifications
      $AlertsUrl

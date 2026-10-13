@@ -3,7 +3,7 @@
 # Uses Q4_K_M quantization by default (fits in 4GB VRAM)
 MODEL_NAME="${OLLAMA_MODEL:-gemma3n:e2b}"
 
-echo "=== Sunny Osprey - Ollama Model Setup ==="
+echo "=== Gazeguard - Ollama Model Setup ==="
 echo "Checking for model: $MODEL_NAME"
 
 # Check if model already exists

@@ -1,5 +1,5 @@
 """
-Video File Processor for Sunny Osprey
+Video File Processor for Gazeguard
 
 Enables offline / pre-recorded video anomaly detection without live webcam.
 Supports:
@@ -30,11 +30,11 @@ from sunny_osprey.alert_manager import AlertManager
 
 
 class VideoFileProcessor:
-    """Processes recorded video files through the Sunny Osprey anomaly detection pipeline."""
+    """Processes recorded video files through the Gazeguard anomaly detection pipeline."""
 
     def __init__(
         self,
-        config_path: str = "sunny-osprey-config.yaml",
+        config_path: str = "gazeguard-config.yaml",
         prompt_file: Optional[str] = None,
         model_name: Optional[str] = None,
     ):

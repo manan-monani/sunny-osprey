@@ -36,12 +36,12 @@ class WebcamPipeline:
     Orchestrates motion detection → frame buffering → LLM inference → alerting.
     """
 
-    def __init__(self, config_path: str = "sunny-osprey-config.yaml"):
+    def __init__(self, config_path: str = "gazeguard-config.yaml"):
         """
         Initialize the webcam pipeline.
 
         Args:
-            config_path: Path to sunny-osprey-config.yaml
+            config_path: Path to gazeguard-config.yaml
         """
         from sunny_osprey.config import SunnyOspreyConfig
         from sunny_osprey.motion_detector import MotionDetector
@@ -274,7 +274,7 @@ class WebcamPipeline:
         Args:
             show_preview: Show a local OpenCV preview window (disable for headless).
         """
-        self.logger.info("🚀 Starting Sunny Osprey Webcam Pipeline")
+        self.logger.info("🚀 Starting Gazeguard Webcam Pipeline")
         self.logger.info("=" * 60)
 
         # Check Ollama connectivity
@@ -377,7 +377,7 @@ class WebcamPipeline:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2,
                         )
 
-                    cv2.imshow("Sunny Osprey - Webcam Monitor", debug_frame)
+                    cv2.imshow("Gazeguard - Webcam Monitor", debug_frame)
 
                     key = cv2.waitKey(1) & 0xFF
                     if key == ord("q") or key == 27:  # q or ESC to quit
@@ -413,10 +413,10 @@ def main():
     """Entry point for the webcam pipeline."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Sunny Osprey Webcam Monitor")
+    parser = argparse.ArgumentParser(description="Gazeguard Webcam Monitor")
     parser.add_argument(
         "--config",
-        default="sunny-osprey-config.yaml",
+        default="gazeguard-config.yaml",
         help="Path to config file",
     )
     parser.add_argument(

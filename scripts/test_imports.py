@@ -1,5 +1,5 @@
 """
-Smoke test for Sunny Osprey webcam edition modules.
+Smoke test for Gazeguard webcam edition modules.
 Run: python scripts/test_imports.py
 """
 
@@ -18,7 +18,7 @@ def test(name, fn):
         print(f"  ❌ {name}: {e}")
         errors.append((name, e))
 
-print("\n🦅 Sunny Osprey — Module Import Test")
+print("\n📹 Gazeguard — Module Import Test")
 print("=" * 45)
 
 test("MotionDetector import", lambda: __import__('sunny_osprey.motion_detector', fromlist=['MotionDetector']))
@@ -30,7 +30,7 @@ test("SunnyOspreyConfig import", lambda: __import__('sunny_osprey.config', froml
 # Test config loading
 def test_config():
     from sunny_osprey.config import SunnyOspreyConfig
-    cfg = SunnyOspreyConfig('sunny-osprey-config.yaml')
+    cfg = SunnyOspreyConfig('gazeguard-config.yaml')
     assert cfg.get_llm_config().get('backend') == 'ollama', "backend should be ollama"
     assert cfg.get_ollama_config().get('host') is not None, "ollama host missing"
     assert isinstance(cfg.get_webcam_config().get('device_id'), int), "device_id should be int"
@@ -89,7 +89,7 @@ else:
     print()
     print("Next steps:")
     print("  1. Wait for Ollama to finish downloading gemma3n:e2b")
-    print("     → docker logs sunny-osprey-ollama -f")
+    print("     → docker logs gazeguard-ollama -f")
     print("  2. Open dashboard: http://localhost:8080")
     print("  3. Start webcam pipeline:")
     print("     → python src/sunny_osprey/webcam_capture.py")

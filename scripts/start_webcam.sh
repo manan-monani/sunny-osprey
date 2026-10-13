@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ── Sunny Osprey — Webcam Edition Startup Script ────────────────────────────
+# ── Gazeguard — Webcam Edition Startup Script ────────────────────────────
 # Starts Docker services (Gemma 3n LLM + Dashboard) and the native webcam pipeline.
 #
 # Usage:
@@ -21,8 +21,8 @@ for arg in "$@"; do
 done
 
 echo ""
-echo "🦅 ═══════════════════════════════════════════════════════"
-echo "   Sunny Osprey — AI Security Monitor (Webcam Edition)"
+echo "📹 ═══════════════════════════════════════════════════════"
+echo "   Gazeguard — AI Security Monitor (Webcam Edition)"
 echo "   Hardware: RTX 2050 4GB VRAM | Model: Gemma 3n E2B (llama.cpp)"
 echo "═══════════════════════════════════════════════════════════"
 echo ""
@@ -91,4 +91,4 @@ echo "   Press 'r' to reset background model"
 echo ""
 
 cd "$PROJECT_DIR"
-python src/sunny_osprey/webcam_capture.py --config sunny-osprey-config.yaml "$@"
+python src/sunny_osprey/webcam_capture.py --config gazeguard-config.yaml "$@"

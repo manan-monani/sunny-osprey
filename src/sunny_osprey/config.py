@@ -1,5 +1,5 @@
 """
-Configuration management for Sunny Osprey.
+Configuration management for Gazeguard.
 """
 
 import os
@@ -18,9 +18,9 @@ if sys.platform == "win32":
 
 
 class SunnyOspreyConfig:
-    """Configuration manager for Sunny Osprey."""
+    """Configuration manager for Gazeguard."""
     
-    def __init__(self, config_path: str = "/app/sunny-osprey-config.yaml"):
+    def __init__(self, config_path: str = "/app/gazeguard-config.yaml"):
         """
         Initialize configuration from YAML file.
         

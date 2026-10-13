@@ -1,7 +1,7 @@
 """
 Run llama.cpp's convert_hf_to_gguf.py --mmproj for Gemma 3n with the audio encoder left out.
 
-Why: Sunny Osprey only sends images, and upstream conversion of the Gemma 3n audio tower currently
+Why: Gazeguard only sends images, and upstream conversion of the Gemma 3n audio tower currently
 fails ("Can not map tensor 'model.audio_tower.subsample_conv_projection.conv_0.norm.weight'").
 A vision-only projector also avoids loading ~600 MB of unused audio weights.
 It also fixes the shape of the MobileNetV5 block layer_scale tensors (see _modify_tensors).

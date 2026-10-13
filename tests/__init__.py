@@ -1,3 +1,3 @@
 """
-Test package for Sunny Osprey.
+Test package for Gazeguard.
 """

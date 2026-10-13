@@ -1,5 +1,5 @@
 """
-Automated Detection Quality Benchmark for Sunny Osprey
+Automated Detection Quality Benchmark for Gazeguard
 
 Runs all test videos through the vision pipeline and compares model output
 against ground truth expectations.
@@ -67,7 +67,7 @@ BENCHMARK_CASES = [
 
 def run_benchmark():
     print("=" * 75)
-    print("🦅 Sunny Osprey — Anomaly Detection Quality Benchmark")
+    print("📹 Gazeguard — Anomaly Detection Quality Benchmark")
     print("=" * 75)
 
     processor = VideoFileProcessor()

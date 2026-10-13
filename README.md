@@ -1,6 +1,14 @@
-# Sixth Sense for Security Guards - Powered by Google's Gemma 3n
+<p align="center">
+  <img src="media/gazeguard-logo.svg" alt="Gazeguard logo" width="96">
+</p>
 
-Sunny Osprey is an AI-powered buddy for security guards - one that never sleeps, blinks, or calls in sick. It monitors live security camera feeds and asks **Google’s Gemma 3n** model to detect unusual or suspicious activity, including medical emergencies.
+# Gazeguard: Sixth Sense for Security Guards - Powered by Google's Gemma 3n
+
+> Gazeguard is built on [Sunny Osprey](https://github.com/sbnb-io/sunny-osprey) by Abylay Ospan and Alsu Ospan
+> (Sunny Osprey Research Lab). The experiments, pilot, hardware and performance notes below come from that
+> original project.
+
+Gazeguard is an AI-powered buddy for security guards - one that never sleeps, blinks, or calls in sick. It monitors live security camera feeds and asks **Google’s Gemma 3n** model to detect unusual or suspicious activity, including medical emergencies.
 
 The entire system runs locally on a consumer-grade NVIDIA GPU. This ensures privacy, low latency, data sovereignty, and avoids cloud inference costs (which can exceed $75/month per camera, based on our usage) while keeping all footage on-site to block centralized surveillance abuses that can fuel authoritarian control (Big Brother not invited).
 
@@ -9,7 +17,7 @@ The entire system runs locally on a consumer-grade NVIDIA GPU. This ensures priv
 <p align="center">
   <img src="media/sunny-osprey-security-guard-640.png" alt="Security guard monitoring screens" width="640">
   <br>
-  <em>We’re currently piloting Sunny Osprey in a private residential community in Miami, Florida.</em>
+  <em>The original Sunny Osprey project is being piloted in a private residential community in Miami, Florida.</em>
 </p>
 
 > **Run it on a Windows laptop with its webcam:** double-click **`start.bat`**. Everything (Gemma 3n,
@@ -323,7 +331,7 @@ Below is a screenshot showing how an alert appears on the phone once received.
 ![](media/alert-320.jpg)
 
 
-## How to Run Sunny Osprey
+## How to Run Gazeguard
 
 There are two ways to run it:
 - **Windows laptop with a webcam (one click)**: for trying it out or watching one room/door. Fits a 4 GB GPU.
@@ -361,7 +369,7 @@ later starts take ~20-30 seconds.
 To stop everything, double-click **`stop.bat`** (models, settings and alert history are kept).
 
 All services listen on this laptop only. Settings (motion sensitivity, cooldown, alert behaviour) are in
-`sunny-osprey-config.yaml`. See **[QUICKSTART.md](QUICKSTART.md)** for addresses, settings, the clip accuracy
+`gazeguard-config.yaml`. See **[QUICKSTART.md](QUICKSTART.md)** for addresses, settings, the clip accuracy
 test and troubleshooting.
 
 ### Linux server with IP cameras (original setup)
@@ -384,7 +392,7 @@ cd sunny-osprey
 
 #### Running a Quick Test
 
-To quickly evaluate the Sunny Osprey system on your machine, follow these steps to set up and run a test using sample video clips.
+To quickly evaluate the Gazeguard system on your machine, follow these steps to set up and run a test using sample video clips.
 
 1. In the root directory of the project, create a `.env` file with your Hugging Face token:
 
@@ -398,7 +406,7 @@ HF_TOKEN=your_huggingface_token_here
 docker compose -f docker-compose.test.yaml run --rm run_tests
 ```
 
-This will build and launch a Docker container with GPU access and execute Sunny Osprey tests using video clips located in the `tests/data` folder. During the first run, the `gemma-3n-E2B-it` model files will be automatically downloaded from Hugging Face.
+This will build and launch a Docker container with GPU access and execute Gazeguard tests using video clips located in the `tests/data` folder. During the first run, the `gemma-3n-E2B-it` model files will be automatically downloaded from Hugging Face.
 
 All tests should pass if Gemma 3n correctly determines whether each video clip contains suspicious activity or not. The test framework checks the model's JSON output against expected results.
 
@@ -419,9 +427,9 @@ PASSED
 ```
 </details>
 
-#### Running the Full Sunny Osprey System with Frigate and MQTT
+#### Running the Full Gazeguard System with Frigate and MQTT
 
-To run the full Sunny Osprey system integrated with Frigate and MQTT:
+To run the full Gazeguard system integrated with Frigate and MQTT:
 
 1. Edit the Frigate config file [frigate-config.yaml](frigate-config.yaml) and specify your camera access credentials and IP addresses.
 
@@ -440,10 +448,10 @@ To get the freshly generated password, run:
 docker compose logs frigate | grep Password
 ```
 
-3. To monitor Sunny Osprey logs and communication with Gemma 3n:
+3. To monitor Gazeguard logs and communication with Gemma 3n:
 
 ```
-docker compose logs -f sunny-osprey
+docker compose logs -f gazeguard
 ```
 
 ##### [Optional] Configure Telegram Messaging
@@ -457,7 +465,7 @@ TELEGRAM_BOT_TOKEN="REPLACE_ME"
 CHAT_ID="REPLACE_ME"
 ```
 
-Start Sunny Osprey as described above, and alerts will be sent to your configured Telegram chat.
+Start Gazeguard as described above, and alerts will be sent to your configured Telegram chat.
 
 ## Next Steps
 
@@ -466,7 +474,7 @@ Start Sunny Osprey as described above, and alerts will be sent to your configure
 
 - We see tremendous possibilities ahead! One exciting direction is building a data flywheel: the system learns from environmental context and human feedback to improve its suspicious activity detection over time.
 
-- Sunny Osprey could help identify medical emergencies, locate missing pets, detect vulnerable individuals in distress, or flag unattended children or elders in public spaces.
+- Gazeguard could help identify medical emergencies, locate missing pets, detect vulnerable individuals in distress, or flag unattended children or elders in public spaces.
 
 - We also plan to investigate the decision-making pathways of the Gemma 3n vision-language model to better understand how they arrive at decisions - kind of like that scene in **Westworld** where Dr. Ford analyzes Dolores’s consciousness in the lab ([Watch this scene](https://youtu.be/hV2Q41o-rwE?si=r6wNLdFAT5r5zmjK&t=2230)). That said, we're not yet fully confident that Gemma 3n captures the temporal progression between frames. For example, in the medical emergency experiment above, the model goes straight to describing "a person is lying on the ground" without acknowledging that the person fell first. This kind of transition is essential for truly understanding causality and intent.
 ![](media/westworld.jpg)
@@ -475,7 +483,7 @@ Start Sunny Osprey as described above, and alerts will be sent to your configure
 
 ## Citation
 
-If you like this project and want to reference it, please cite it as:
+Gazeguard is based on Sunny Osprey. If you like this project and want to reference it, please cite the original work as:
 
 ```bibtex
 @misc{sunnyosprey2025,

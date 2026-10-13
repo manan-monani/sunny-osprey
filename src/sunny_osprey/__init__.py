@@ -1,10 +1,10 @@
 """
-Sunny Osprey - AI-Powered Security Camera Monitor
+Gazeguard - AI-Powered Security Camera Monitor
 Webcam Edition v2.0 - Adapted for RTX 2050 (4GB VRAM) + Ollama
 """
 
 __version__ = "2.0.0"
-__author__ = "Sunny Osprey Team"
+__author__ = "Gazeguard Team"
 
 # Use lazy imports to avoid loading heavy dependencies (transformers, torch)
 # at import time. They are only needed for the HuggingFace backend.

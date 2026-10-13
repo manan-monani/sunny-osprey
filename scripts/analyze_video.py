@@ -1,5 +1,5 @@
 """
-Standalone Video Analysis CLI for Sunny Osprey
+Standalone Video Analysis CLI for Gazeguard
 
 Run anomaly detection on pre-recorded video files or folders:
     python scripts/analyze_video.py tests/data/criminal.mp4
@@ -53,7 +53,7 @@ def format_result(result: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sunny Osprey Video Anomaly Detector",
+        description="Gazeguard Video Anomaly Detector",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -73,8 +73,8 @@ def main():
     )
     parser.add_argument(
         "--config",
-        default="sunny-osprey-config.yaml",
-        help="Configuration file (default: sunny-osprey-config.yaml)",
+        default="gazeguard-config.yaml",
+        help="Configuration file (default: gazeguard-config.yaml)",
     )
     parser.add_argument(
         "--no-alert",
@@ -98,7 +98,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    print("🦅 Sunny Osprey — Video Anomaly Detection")
+    print("📹 Gazeguard — Video Anomaly Detection")
     print(f"📋 Config: {args.config}")
     processor = VideoFileProcessor(
         config_path=args.config,

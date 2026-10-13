@@ -2,31 +2,31 @@ services:
   # MQTT Broker
   mqtt:
     image: eclipse-mosquitto:latest
-    container_name: sunny-osprey-mqtt
+    container_name: gazeguard-mqtt
     ports:
       - "1883:1883"
       - "9001:9001"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
 
-  # Sunny Osprey Main Service
-  sunny-osprey:
+  # Gazeguard Main Service
+  gazeguard:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: sunny-osprey
+    container_name: gazeguard
     environment:
       - PYTHONUNBUFFERED=1
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
       - ./tests/data:/app/test_videos:rw
-      - sunnyosprey_ready:/shared
+      - gazeguard_ready:/shared
       - ./prompt.txt:/app/prompt.txt:ro
       - ./system_prompt.txt:/app/system_prompt.txt:ro
-      - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+      - ./gazeguard-config.yaml:/app/gazeguard-config.yaml:ro
       - ./.env:/app/.env:ro
     deploy:
       resources:
@@ -38,7 +38,7 @@ services:
     depends_on:
       - mqtt
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
     healthcheck:
       # Check for readiness file every 2 seconds for quick detection of fast startups
@@ -54,22 +54,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: sunny-osprey-test-injector
+    container_name: gazeguard-test-injector
     environment:
       - MQTT_HOST=mqtt
       - MQTT_PORT=1883
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
       - ./tests/data:/app/test_videos:rw
-      - sunnyosprey_ready:/shared
+      - gazeguard_ready:/shared
     command: ["/app/inject_test_events.sh"]
     depends_on:
       mqtt:
         condition: service_started
-      sunny-osprey:
+      gazeguard:
         condition: service_healthy
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     profiles:
       - inject_test_events
 
@@ -77,7 +77,7 @@ services:
   frigate:
     image: ghcr.io/blakeblackshear/frigate:0.16.0-beta3-tensorrt
     runtime: nvidia
-    container_name: sunny-osprey-frigate
+    container_name: gazeguard-frigate
     shm_size: "512mb"
     ports:
       - "8971:8971"
@@ -92,7 +92,7 @@ services:
               count: -1
               capabilities: [gpu]
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     profiles:
       - frigate
 
@@ -106,15 +106,15 @@ services:
       - "8888:8888"
       - "8889:8889"
     networks:
-      - sunny-osprey-network
+      - gazeguard-network
     restart: unless-stopped
     profiles:
       - frigate
 networks:
-  sunny-osprey-network:
+  gazeguard-network:
 
 volumes:
-  sunnyosprey_ready:
+  gazeguard_ready:
     driver: local
     driver_opts:
       type: tmpfs

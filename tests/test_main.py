@@ -18,7 +18,7 @@ class TestParseArguments:
         
         try:
             args = parse_arguments()
-            assert args.config == '/app/sunny-osprey-config.yaml'
+            assert args.config == '/app/gazeguard-config.yaml'
         finally:
             sys.argv = original_argv
     
@@ -60,7 +60,7 @@ class TestRunMqttProcessor:
             mock_processor_class.return_value = mock_processor
             
             # Call the function with test parameters
-            run_mqtt_processor(config_path="/app/sunny-osprey-config.yaml")
+            run_mqtt_processor(config_path="/app/gazeguard-config.yaml")
             
             # Verify that LLMInferenceEngine was called
             mock_llm_class.assert_called_once_with(prompt_file="/app/prompt.txt", config={'prompt_file': '/app/prompt.txt', 'model_name': 'gemma-3n-E2B-it', 'max_new_tokens': 500})

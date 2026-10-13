@@ -1,4 +1,4 @@
-/* ── Sunny Osprey Dashboard — Real-time JS ─────────────────────────────────── */
+/* ── Gazeguard Dashboard — Real-time JS ─────────────────────────────────── */
 /* WebSocket connection, event rendering, live feed, stats management */
 
 // ── State ─────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
-# Sunny Osprey Configuration
+# Gazeguard Configuration
 
-Sunny Osprey uses a YAML configuration file to control its behavior. The configuration file is located at `/app/sunny-osprey-config.yaml` by default.
+Gazeguard uses a YAML configuration file to control its behavior. The configuration file is located at `/app/gazeguard-config.yaml` by default.
 
 ## Configuration File Structure
 
@@ -31,7 +31,7 @@ cameras:
     # - GARAGE
 ```
 
-**Important**: If no cameras are specified (empty list), Sunny Osprey will process events from ALL cameras.
+**Important**: If no cameras are specified (empty list), Gazeguard will process events from ALL cameras.
 
 ### LLM Configuration
 ```yaml
@@ -154,7 +154,7 @@ When running with Docker, the configuration file is mounted from the host:
 
 ```yaml
 volumes:
-  - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+  - ./gazeguard-config.yaml:/app/gazeguard-config.yaml:ro
 ```
 
 ## Camera Names

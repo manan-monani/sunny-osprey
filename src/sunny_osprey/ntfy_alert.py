@@ -1,5 +1,5 @@
 """
-Ntfy Alert Module for Sunny Osprey
+Ntfy Alert Module for Gazeguard
 
 Sends instant push notifications to smartphone via ntfy.sh.
 Supports urgent priority (bypasses silent/DND, rings audible alarm on phone),
@@ -8,7 +8,7 @@ emoji tags, anomaly classification, and image/clip attachments.
 App installation:
 - Android: Install 'ntfy' from Google Play Store or F-Droid
 - iOS: Install 'ntfy' from Apple App Store
-- Subscribe to your topic (e.g. 'sunny-osprey-alerts-<your-topic>')
+- Subscribe to your topic (e.g. 'gazeguard-alerts-<your-topic>')
 """
 
 import json
@@ -28,7 +28,7 @@ class NtfyAlert:
 
         # Topic name: use config, env var, or a default
         self.topic = self.config.get("topic") or os.getenv(
-            "NTFY_TOPIC", "sunny-osprey-security-alerts"
+            "NTFY_TOPIC", "gazeguard-security-alerts"
         )
         # NTFY_SERVER wins so the same config works natively (localhost) and inside Docker (ntfy service)
         self.server = (
@@ -84,11 +84,11 @@ class NtfyAlert:
             if is_suspicious:
                 priority = "urgent"  # Level 5 in ntfy: rings alarm, vibrates, wakes screen
                 tags = "rotating_light,warning,bell"
-                title = f"SECURITY ALARM: {anomaly_type.upper()}"
+                title = f"Gazeguard ALARM: {anomaly_type.upper()}"
             else:
                 priority = "default"  # Level 3
                 tags = "information_source,white_check_mark"
-                title = f"Monitoring Notice: {anomaly_type}"
+                title = f"Gazeguard notice: {anomaly_type}"
 
             # Ensure header is strictly ASCII safe
             title_clean = title.encode("ascii", "ignore").decode("ascii")

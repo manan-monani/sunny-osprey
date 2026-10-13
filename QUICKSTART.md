@@ -1,4 +1,4 @@
-# Sunny Osprey on a Windows laptop: quick start
+# Gazeguard on a Windows laptop: quick start
 
 Everything (AI model, webcam analysis, dashboard, private alerts) runs in Docker on this laptop.
 Tested on: Windows 11, 16 GB RAM, NVIDIA RTX 2050 (4 GB), Docker Desktop.
@@ -32,7 +32,7 @@ Double-click **`stop.bat`**. Models, settings and alert history are kept.
 |---|---|
 | Dashboard | http://localhost:8080 |
 | Camera publish page | **📷 Connect camera** button on the dashboard |
-| Private alerts | **🔔 Alerts** button on the dashboard (topic set in `sunny-osprey-config.yaml`) |
+| Private alerts | **🔔 Alerts** button on the dashboard (topic set in `gazeguard-config.yaml`) |
 | Model server (OpenAI API + chat UI) | http://localhost:8081 |
 
 Everything listens on this laptop only (127.0.0.1), so nobody else on your Wi-Fi can see the camera.
@@ -55,7 +55,7 @@ docker compose -f docker-compose.webcam.yaml logs -f webcam                     
 docker compose -f docker-compose.webcam.yaml --profile test run --rm clip-tests   # accuracy check (7 clips)
 ```
 
-## Settings worth knowing (`sunny-osprey-config.yaml`)
+## Settings worth knowing (`gazeguard-config.yaml`)
 
 - `motion.cooldown_seconds`: minimum time between analyses (default 12 s)
 - `motion.min_area`: motion sensitivity (lower = more sensitive)
