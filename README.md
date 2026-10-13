@@ -12,6 +12,11 @@ The entire system runs locally on a consumer-grade NVIDIA GPU. This ensures priv
   <em>We’re currently piloting Sunny Osprey in a private residential community in Miami, Florida.</em>
 </p>
 
+> **Run it on a Windows laptop with its webcam:** double-click **`start.bat`**. Everything (Gemma 3n,
+> webcam analysis, dashboard, private alerts) starts in Docker and the browser pages open by themselves.
+> See [Windows laptop with a webcam (one click)](#windows-laptop-with-a-webcam-one-click) and
+> [QUICKSTART.md](QUICKSTART.md).
+
 
 
 ## What It Does
@@ -319,7 +324,49 @@ Below is a screenshot showing how an alert appears on the phone once received.
 
 
 ## How to Run Sunny Osprey
-### Prerequisites
+
+There are two ways to run it:
+- **Windows laptop with a webcam (one click)**: for trying it out or watching one room/door. Fits a 4 GB GPU.
+- **Linux server with IP cameras (original setup)**: Frigate + MQTT for many RTSP cameras.
+
+### Windows laptop with a webcam (one click)
+
+Everything runs in Docker: Gemma 3n E2B on llama.cpp (GPU), the webcam pipeline (motion detection →
+Gemma 3n → alerts), the web dashboard, a private ntfy alert server and a camera relay. Tested on Windows 11,
+16 GB RAM and an NVIDIA RTX 2050 (4 GB).
+
+**You need:** Windows 10/11, an NVIDIA GPU (4 GB+), [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(WSL 2 backend), and Git. No Hugging Face token is needed.
+
+**First time:**
+
+```bash
+git clone https://github.com/manan-monani/sunny-osprey.git
+cd sunny-osprey
+```
+
+Then double-click **`start.bat`**. The first run downloads the model (~11 GB, time depends on your connection)
+and converts it (~10 min);
+later starts take ~20-30 seconds.
+
+**Every time after that:**
+
+1. Double-click **`start.bat`**. It starts Docker Desktop if needed, starts all services, waits until they are
+   ready and opens three browser tabs.
+2. **Camera tab**: allow the camera, click **Publish**, keep the tab open (or use **📷 Connect camera** on the dashboard).
+3. **Alerts tab**: click **Grant now** once for desktop notifications. Alerts stay on this laptop; nothing is
+   sent to the public ntfy.sh.
+4. **Dashboard** (http://localhost:8080): live camera and every analyzed event.
+
+To stop everything, double-click **`stop.bat`** (models, settings and alert history are kept).
+
+All services listen on this laptop only. Settings (motion sensitivity, cooldown, alert behaviour) are in
+`sunny-osprey-config.yaml`. See **[QUICKSTART.md](QUICKSTART.md)** for addresses, settings, the clip accuracy
+test and troubleshooting.
+
+### Linux server with IP cameras (original setup)
+
+#### Prerequisites
 
 Make sure the following are installed and configured on your machine:
 
@@ -328,14 +375,14 @@ Make sure the following are installed and configured on your machine:
 - NVIDIA GPU with CUDA support
 - NVIDIA Container Toolkit
 
-### Clone the Repository
+#### Clone the Repository
 
 ```bash
 git clone https://github.com/sbnb-io/sunny-osprey.git
 cd sunny-osprey
 ```
 
-### Running a Quick Test
+#### Running a Quick Test
 
 To quickly evaluate the Sunny Osprey system on your machine, follow these steps to set up and run a test using sample video clips.
 
@@ -372,7 +419,7 @@ PASSED
 ```
 </details>
 
-### Running the Full Sunny Osprey System with Frigate and MQTT
+#### Running the Full Sunny Osprey System with Frigate and MQTT
 
 To run the full Sunny Osprey system integrated with Frigate and MQTT:
 
@@ -399,7 +446,7 @@ docker compose logs frigate | grep Password
 docker compose logs -f sunny-osprey
 ```
 
-#### [Optional] Configure Telegram Messaging
+##### [Optional] Configure Telegram Messaging
 
 To receive alerts directly to your phone, you can configure a Telegram bot. Follow [this guide](https://gist.github.com/nafiesl/4ad622f344cd1dc3bb1ecbe468ff9f8a) to create a Telegram bot and obtain the bot API key and chat ID.
 
