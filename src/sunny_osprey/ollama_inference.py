@@ -59,7 +59,7 @@ class OllamaInferenceEngine:
         self.timeout = ollama_config.get("timeout", 60)
         self.max_new_tokens = llm_config.get("max_new_tokens", 350)
         # "ollama": Ollama's /api/chat. "openai": OpenAI-compatible /v1/chat/completions, as served by
-        # llama.cpp's llama-server (the only local runtime that gives Gemma 3n image input on 4 GB VRAM).
+        # llama.cpp's llama-server (runs Gemma 4 E2B with image input on a 4 GB GPU).
         self.api = (os.getenv("LLM_API") or ollama_config.get("api", "ollama")).lower()
 
         self.logger = logging.getLogger(__name__)
@@ -126,6 +126,8 @@ class OllamaInferenceEngine:
             "max_tokens": self.max_new_tokens,
             "temperature": 0.0,  # Deterministic security evaluation
             "response_format": {"type": "json_object"},  # grammar-constrained, always parseable
+            # Gemma 4 "thinks" before answering by default and spends the whole token budget on it
+            "chat_template_kwargs": {"enable_thinking": False},
         }
         resp = requests.post(f"{self.host}/v1/chat/completions", json=payload, timeout=self.timeout)
         resp.raise_for_status()

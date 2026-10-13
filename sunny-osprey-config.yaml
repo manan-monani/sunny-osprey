@@ -1,6 +1,6 @@
 # Sunny Osprey Configuration File - Webcam Edition v2.0
 # Adapted for: 16GB RAM, RTX 2050 4GB VRAM, single laptop webcam
-# LLM Backend: Ollama (gemma3n:e2b with Q4_K_M quantization, ~3.5GB VRAM)
+# LLM Backend: Gemma 4 E2B on llama.cpp (QAT Q4_0 + vision projector, fits 4GB VRAM)
 
 # ── MQTT (kept for future Frigate integration) ──────────────────────────────
 mqtt:
@@ -35,22 +35,22 @@ motion:
   clip_duration_seconds: 5  # Seconds of pre-event video to buffer
 
 # ── LLM Server ───────────────────────────────────────────────────────────────
-# Default: Gemma 3n E2B (Q4_K_M + vision projector) served by llama.cpp in Docker ("llm" service).
-# Ollama's gemma3n build is text-only, so it cannot look at camera frames; llama.cpp can.
+# Default: Gemma 4 E2B (smallest Gemma 4; QAT Q4_0 + vision projector) served by llama.cpp in Docker
+# ("llm" service). It fits a 4 GB GPU and sees the camera frames.
 # Inside Docker the OLLAMA_HOST / LLM_API env vars from docker-compose.webcam.yaml override these.
 # To use Ollama instead: api: ollama, host: http://localhost:11434, model: llava-phi3
 #   and start it with: docker compose -f docker-compose.webcam.yaml --profile ollama up -d
 ollama:
   host: http://localhost:8081    # llama.cpp server as exposed on this laptop
   api: openai                    # "openai" (llama.cpp) or "ollama"
-  model: gemma-3n-E2B-it
+  model: gemma-4-E2B-it
   timeout: 120                   # Max seconds to wait for inference response
 
 # ── LLM Configuration ───────────────────────────────────────────────────────
 llm:
   backend: ollama               # "ollama" = HTTP model server (above), "huggingface" = in-process (needs 9GB+)
   prompt_file: prompt.txt
-  model_name: gemma-3n-E2B-it
+  model_name: gemma-4-E2B-it
   max_new_tokens: 300
   load_in_4bit: false
 

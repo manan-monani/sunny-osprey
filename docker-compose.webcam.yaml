@@ -2,14 +2,14 @@
 # Designed for: 16GB RAM, RTX 2050 4GB VRAM, single laptop webcam. Everything runs in Docker.
 #
 # Architecture:
-#   - llm:       Gemma 3n E2B (Q4_K_M + vision projector) on llama.cpp, GPU-accelerated
+#   - llm:       Gemma 4 E2B (QAT Q4_0 + vision projector) on llama.cpp, GPU-accelerated
 #   - mediamtx:  receives the webcam from a browser tab (WebRTC) and re-serves it as RTSP
-#   - webcam:    capture -> MOG2 motion -> frame buffer -> Gemma 3n -> alerts (headless)
+#   - webcam:    capture -> MOG2 motion -> frame buffer -> Gemma 4 -> alerts (headless)
 #   - dashboard: FastAPI web UI + real-time event feed
 #   - mqtt:      MQTT broker (for future Frigate integration)
 #
 # Docker Desktop on Windows cannot pass a USB webcam into containers, so the browser publishes it:
-#   1. One-time model build (~11 GB download, ~10 min):
+#   1. One-time model download (~4 GB):
 #        docker compose -f docker-compose.webcam.yaml --profile setup run --rm model-prep
 #   2. Start everything:
 #        docker compose -f docker-compose.webcam.yaml up -d --build
@@ -32,7 +32,7 @@ x-gpu: &gpu
 
 services:
 
-  # ─── Gemma 3n LLM Server (llama.cpp) ──────────────────────────────────────
+  # ─── Gemma 4 LLM Server (llama.cpp) ───────────────────────────────────────
   llm:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
     container_name: sunny-osprey-llm
@@ -40,14 +40,17 @@ services:
     ports:
       - "127.0.0.1:8081:8080"   # OpenAI-compatible API + chat UI at http://localhost:8081
     volumes:
-      - ./models/gguf:/models:ro    # built by the model-prep service
+      - ./models/gguf:/models:ro    # downloaded by the model-prep service
+    # Model files are switchable from .env, e.g. Gemma 3n E2B (see scripts/prepare_gemma3n.sh):
+    #   LLM_MODEL_FILE=gemma-3n-E2B-it-Q4_K_M.gguf
+    #   LLM_MMPROJ_FILE=mmproj-gemma-3n-E2B-it-f16.gguf
     command:
       - --model
-      - /models/gemma-3n-E2B-it-Q4_K_M.gguf
+      - /models/${LLM_MODEL_FILE:-gemma-4-E2B_q4_0-it.gguf}
       - --mmproj
-      - /models/mmproj-gemma-3n-E2B-it-f16.gguf
+      - /models/${LLM_MMPROJ_FILE:-mmproj-gemma-4-E2B-it-Q8_0.gguf}
       - --alias
-      - gemma-3n-E2B-it
+      - gemma-4-E2B-it
       - --host
       - 0.0.0.0
       - --port
@@ -56,6 +59,12 @@ services:
       - "8192"
       - --parallel
       - "1"           # one inference at a time, like the webcam pipeline
+      # Gemma 4 sizes images by a token budget; the default (~280) leaves each frame of the
+      # 3x3 montage too small to judge. 1120 measured best on the test clips (3/7 -> 4/7).
+      - --image-min-tokens
+      - "1120"
+      - --image-max-tokens
+      - "1120"
     networks:
       - sunny-osprey-network
     restart: unless-stopped
@@ -66,17 +75,26 @@ services:
       retries: 30
       start_period: 30s
 
-  # ─── One-time model build (profile: setup) ────────────────────────────────
-  # Downloads Gemma 3n E2B and converts it to GGUF with llama.cpp's converter (text model + vision
-  # projector). Community GGUFs predate llama.cpp's Gemma 3n vision support and are text-only.
+  # ─── One-time model download (profile: setup) ─────────────────────────────
+  # Fetches the Gemma 4 E2B GGUF + vision projector (pinned revisions) into ./models/gguf
   model-prep:
-    image: ghcr.io/ggml-org/llama.cpp:full-cuda
-    entrypoint: ["bash", "/scripts/prepare_model.sh"]
+    image: python:3.12-slim
+    entrypoint: ["sh", "/scripts/prepare_model.sh"]
     volumes:
       - ./models:/models
       - ./scripts:/scripts:ro
     profiles:
       - setup
+
+  # Alternative: build Gemma 3n E2B GGUFs (download ~11 GB + conversion)
+  model-prep-gemma3n:
+    image: ghcr.io/ggml-org/llama.cpp:full-cuda
+    entrypoint: ["bash", "/scripts/prepare_gemma3n.sh"]
+    volumes:
+      - ./models:/models
+      - ./scripts:/scripts:ro
+    profiles:
+      - setup-gemma3n
 
   # ─── Webcam Relay (browser -> RTSP) ───────────────────────────────────────
   mediamtx:
@@ -157,7 +175,7 @@ services:
     restart: unless-stopped
 
   # ─── Ollama (optional, profile: ollama) ───────────────────────────────────
-  # Previous default. Ollama's gemma3n is text-only, so use a vision model such as llava-phi3:
+  # Previous default, kept as an alternative backend (e.g. with llava-phi3):
   #   OLLAMA_MODEL=llava-phi3 docker compose -f docker-compose.webcam.yaml --profile ollama up -d ollama
   ollama:
     build:

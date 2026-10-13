@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ── Sunny Osprey — Webcam Edition Startup Script ────────────────────────────
-# Starts Docker services (Ollama + Dashboard) and the native webcam pipeline.
+# Starts Docker services (Gemma 4 LLM + Dashboard) and the native webcam pipeline.
 #
 # Usage:
 #   bash scripts/start_webcam.sh            # Start everything
@@ -23,26 +23,26 @@ done
 echo ""
 echo "🦅 ═══════════════════════════════════════════════════════"
 echo "   Sunny Osprey — AI Security Monitor (Webcam Edition)"
-echo "   Hardware: RTX 2050 4GB VRAM | Model: gemma3n:e2b"
+echo "   Hardware: RTX 2050 4GB VRAM | Model: Gemma 4 E2B (llama.cpp)"
 echo "═══════════════════════════════════════════════════════════"
 echo ""
 
 # Step 1: Start Docker services
-echo "🐳 Starting Docker services (Ollama + Dashboard)..."
-docker compose -f "$COMPOSE_FILE" up -d
+echo "🐳 Starting Docker services (Gemma 4 LLM + Dashboard)..."
+docker compose -f "$COMPOSE_FILE" up -d llm dashboard   # capture runs natively below
 
 echo ""
-echo "⏳ Waiting for Ollama to load model..."
-echo "   (First run will download ~3GB — this may take several minutes)"
+echo "⏳ Waiting for the LLM server to load Gemma 4..."
+echo "   (Model files come from: docker compose -f docker-compose.webcam.yaml --profile setup run --rm model-prep)"
 echo ""
 
-# Wait for Ollama to be ready
+# Wait for the LLM server to be ready
 MAX_WAIT=300
 ELAPSED=0
-while ! curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do
+while ! curl -sf http://localhost:8081/health > /dev/null 2>&1; do
   if [ $ELAPSED -ge $MAX_WAIT ]; then
-    echo "❌ Ollama did not start within ${MAX_WAIT}s. Check logs:"
-    echo "   docker compose -f $COMPOSE_FILE logs ollama"
+    echo "❌ LLM server did not start within ${MAX_WAIT}s. Check logs:"
+    echo "   docker compose -f $COMPOSE_FILE logs llm"
     exit 1
   fi
   printf "."
@@ -50,7 +50,7 @@ while ! curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do
   ELAPSED=$((ELAPSED + 3))
 done
 echo ""
-echo "✅ Ollama is ready!"
+echo "✅ LLM server is ready!"
 
 # Wait for dashboard
 echo "⏳ Waiting for dashboard..."
