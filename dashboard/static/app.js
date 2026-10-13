@@ -505,8 +505,22 @@ window.clearHistory = async function() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
+// Header buttons: camera publish page (H.264 link) and the private alert topic, from the backend config
+async function loadLinks() {
+  try {
+    const links = await (await fetch('/api/links')).json();
+    for (const [id, url] of [['linkCamera', links.camera], ['linkAlerts', links.alerts]]) {
+      const el = document.getElementById(id);
+      if (el && url) { el.href = url; el.classList.remove('hidden'); }
+    }
+  } catch (e) {
+    console.warn('Could not load header links', e);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateClock();
   setInterval(updateClock, 1000);
   connectWebSocket();
+  loadLinks();
 });

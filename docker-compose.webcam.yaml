@@ -47,7 +47,9 @@ services:
     ports:
       - "127.0.0.1:8081:8080"   # OpenAI-compatible API + chat UI at http://localhost:8081
     volumes:
-      - ./models/gguf:/models:ro    # built by the model-prep service
+      # Copied in by model-sync: reading 3.9 GB from the Windows folder (WSL file share, ~55 MB/s)
+      # made every start take ~3 min once the VM stops caching it; a Docker volume reads ~7x faster
+      - llm_models:/models:ro
     # Model files are switchable from .env, e.g. Gemma 4 E2B (faster, less accurate here; see
     # scripts/prepare_gemma4.sh):
     #   LLM_MODEL_FILE=gemma-4-E2B_q4_0-it.gguf
@@ -83,6 +85,9 @@ services:
       - "1120"
       - --image-max-tokens
       - "1120"
+    depends_on:
+      model-sync:
+        condition: service_completed_successfully
     networks:
       - sunny-osprey-network
     restart: unless-stopped
@@ -92,6 +97,27 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
+
+  # ─── Model sync (runs before llm) ─────────────────────────────────────────
+  # Copies ./models/gguf/*.gguf into the llm_models volume when missing or changed (no-op otherwise)
+  model-sync:
+    image: python:3.12-slim
+    container_name: sunny-osprey-model-sync
+    volumes:
+      - ./models/gguf:/src:ro
+      - llm_models:/models
+    command:
+      - sh
+      - -c
+      - |
+        for f in /src/*.gguf; do
+          t=/models/$${f##*/}
+          if [ ! -f "$$t" ] || [ "$$(stat -c%s "$$f")" != "$$(stat -c%s "$$t")" ]; then
+            echo "copying $${f##*/}"; cp "$$f" "$$t.part" && mv "$$t.part" "$$t" || exit 1
+          fi
+        done
+        echo "models in sync"
+    restart: "no"
 
   # ─── One-time model build (profile: setup) ────────────────────────────────
   # Downloads Gemma 3n E2B and converts it to GGUF with llama.cpp's converter (text model + vision
@@ -153,7 +179,8 @@ services:
       - TZ=${TZ:-UTC}   # local time in logs/alerts; set TZ in .env (e.g. TZ=Asia/Kolkata)
       # One 720p stream needs few threads; by default FFmpeg/OpenCV/OpenBLAS start one per CPU core
       # (57 threads here), each with its own buffers
-      - OPENCV_FFMPEG_CAPTURE_OPTIONS=threads;2
+      # RTSP over TCP: UDP drops packets inside Docker's network and corrupts frames
+      - OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp|threads;2
       - OMP_NUM_THREADS=2
       - OPENBLAS_NUM_THREADS=1
     env_file:
@@ -212,7 +239,7 @@ services:
     mem_limit: 256m
     command: ["/venv/bin/python", "-m", "uvicorn", "sunny_osprey.dashboard:app", "--host", "0.0.0.0", "--port", "8080"]
     ports:
-      - "8080:8080"   # Web dashboard (open in browser)
+      - "127.0.0.1:8080:8080"   # Web dashboard; shows the live camera, so this laptop only
     environment:
       - PYTHONUNBUFFERED=1
       - OLLAMA_HOST=http://llm:8080
@@ -289,8 +316,8 @@ services:
     container_name: sunny-osprey-mqtt
     mem_limit: 64m
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "127.0.0.1:1883:1883"
+      - "127.0.0.1:9001:9001"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     networks:
@@ -306,3 +333,5 @@ volumes:
     driver: local    # Persists across container restarts
   ntfy_cache:
     driver: local
+  llm_models:
+    driver: local    # GGUF copies for fast loading (see model-sync)

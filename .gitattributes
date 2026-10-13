@@ -21,3 +21,4 @@ media/json-llm.jpg filter=lfs diff=lfs merge=lfs -text
 frigate-config/yolo_nas_s.onnx filter=lfs diff=lfs merge=lfs -text
 # Scripts run inside Linux containers: keep LF even on Windows checkouts
 *.sh text eol=lf
+*.bat text eol=crlf

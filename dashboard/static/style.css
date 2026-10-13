@@ -145,6 +145,13 @@ body {
   gap: 12px;
 }
 
+.header-link {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.header-link.hidden { display: none; }
+
 .model-badge {
   display: flex;
   align-items: center;

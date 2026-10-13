@@ -350,6 +350,29 @@ async def clear_events():
     return {"status": "ok", "message": "All events cleared"}
 
 
+# Camera publish page with the settings the pipeline needs: H.264 (browsers default to AV1, which
+# OpenCV here cannot decode), 720p at 15 fps, no microphone. Same link as scripts/start.ps1.
+CAMERA_PUBLISH_URL = (
+    "http://localhost:8889/webcam/publish?video-codec=h264%2F90000&video-width=1280"
+    "&video-height=720&video-framerate=15&video-bitrate=2500&audio-device=none"
+)
+
+
+@app.get("/api/links")
+async def get_links():
+    """Links for the header buttons: camera publish page and the private ntfy alert topic."""
+    alerts_url = None
+    try:
+        import yaml
+        with open(os.getenv("SUNNY_OSPREY_CONFIG", "/app/sunny-osprey-config.yaml"), encoding="utf-8") as f:
+            ntfy = (yaml.safe_load(f) or {}).get("alerts", {}).get("ntfy", {})
+        if ntfy.get("topic") and ntfy.get("server"):
+            alerts_url = f"{ntfy['server'].rstrip('/')}/{ntfy['topic']}"
+    except Exception as e:
+        logger.warning(f"Could not read alert topic from config: {e}")
+    return {"camera": CAMERA_PUBLISH_URL, "alerts": alerts_url}
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""

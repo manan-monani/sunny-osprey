@@ -105,6 +105,8 @@ class WebcamPipeline:
         # State
         self.running = False
         self.cap: Optional[cv2.VideoCapture] = None
+        self._codec_warned = False
+        self.frames_since_open = 0
         self.inference_thread: Optional[threading.Thread] = None
         self._pending_inference = False  # Lock to prevent concurrent inferences
 
@@ -117,8 +119,10 @@ class WebcamPipeline:
 
     def _init_camera(self) -> bool:
         """Initialize OpenCV video capture for webcam."""
-        self.logger.info(f"Opening webcam device {self.device_id}...")
-        if isinstance(self.device_id, str):
+        is_stream = isinstance(self.device_id, str)
+        # Streams are re-polled every few seconds while unpublished, so keep that quiet
+        (self.logger.debug if is_stream else self.logger.info)(f"Opening webcam device {self.device_id}...")
+        if is_stream:
             self.cap = cv2.VideoCapture(self.device_id)  # network stream (FFmpeg backend)
         else:
             self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_DSHOW)  # CAP_DSHOW = Windows
@@ -145,9 +149,39 @@ class WebcamPipeline:
         actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
 
+        if is_stream and actual_w == 0:
+            self._warn_undecodable_stream()
+            self.cap.release()
+            return False
+        self.frames_since_open = 0
+
         self.logger.info(
             f"✅ Webcam opened: {actual_w}x{actual_h} @ {actual_fps:.0f}fps"
         )
+        return True
+
+    def _warn_undecodable_stream(self):
+        """Explain (once) a stream that opens but yields no frames, e.g. a browser publishing AV1."""
+        if self._codec_warned:
+            return
+        fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC)) if self.cap else 0
+        codec = "".join(chr((fourcc >> 8 * i) & 0xFF) for i in range(4)).strip(chr(0) + " ") or "unknown"
+        self.logger.warning(
+            f"⚠️ The camera stream (codec: {codec}) cannot be decoded. Re-publish it with H.264 using the "
+            f"camera link opened by start.bat (it sets video-codec=h264); browsers default to AV1."
+        )
+        self._codec_warned = True
+
+    def _wait_for_camera(self) -> bool:
+        """Open the camera. Stream URLs are retried until published; returns False to give up."""
+        logged = False
+        while not self._init_camera():
+            if not isinstance(self.device_id, str):
+                return False
+            if not logged:
+                self.logger.info("⏳ Waiting for the camera stream (publish it with the camera link from start.bat)")
+                logged = True
+            time.sleep(5)
         return True
 
     def _downscale(self, frame: np.ndarray) -> np.ndarray:
@@ -247,12 +281,8 @@ class WebcamPipeline:
         self.logger.info("🔌 Checking Ollama connectivity...")
         self.inference_engine._initialize_model()
 
-        # Open camera (a stream may not be published yet, so keep trying for URLs)
-        while not self._init_camera():
-            if not isinstance(self.device_id, str):
-                return
-            self.logger.info("Waiting for the camera stream (publish it at http://localhost:8889/webcam/publish)...")
-            time.sleep(5)
+        if not self._wait_for_camera():
+            return
         read_failures = 0
 
         self.running = True
@@ -273,16 +303,21 @@ class WebcamPipeline:
                 if not ret:
                     read_failures += 1
                     if read_failures % 50 == 0:
+                        if self.frames_since_open == 0 and isinstance(self.device_id, str):
+                            self._warn_undecodable_stream()  # opened, but not one frame decoded
                         # Camera unplugged / stream ended: reopen instead of retrying a dead handle
                         self.logger.warning("Camera stopped delivering frames, reconnecting...")
                         self.cap.release()
                         time.sleep(2)
-                        self._init_camera()
+                        if not self._wait_for_camera():
+                            break
                     else:
                         self.logger.debug("Failed to read frame, retrying...")
                         time.sleep(0.1)
                     continue
                 read_failures = 0
+                self.frames_since_open += 1
+                self._codec_warned = False
 
                 # Throttle processing to the configured FPS; surplus frames are dropped
                 now = time.time()
