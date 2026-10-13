@@ -10,8 +10,11 @@ import logging
 import time
 from collections import deque
 from typing import List, Optional, Tuple
+import cv2
 import numpy as np
 from PIL import Image
+
+JPEG_QUALITY = 90  # visually lossless at the <=768px the model sees
 
 
 class FrameBuffer:
@@ -43,7 +46,7 @@ class FrameBuffer:
         self.post_event_frames = post_event_frames
         self.capacity = int(fps * duration_seconds)
 
-        # The circular buffer stores (timestamp, frame) tuples
+        # The circular buffer stores (timestamp, JPEG bytes) tuples
         self.buffer: deque = deque(maxlen=self.capacity)
 
         # Post-event capture state
@@ -51,8 +54,8 @@ class FrameBuffer:
         self._triggered = False
         self._trigger_time: Optional[float] = None
 
-        # Frames collected after trigger (for the "after" part of the event)
-        self._post_trigger_frames: List[Tuple[float, np.ndarray]] = []
+        # Timestamps of frames collected after the trigger (the "after" part of the event)
+        self._post_trigger_frames: List[float] = []
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(
@@ -72,12 +75,16 @@ class FrameBuffer:
         """
         timestamp = time.time()
 
-        # Always add to circular buffer
-        self.buffer.append((timestamp, frame.copy()))
+        # Frames are kept JPEG-encoded (~100 KB instead of ~1 MB raw at 768x432); only the
+        # 10 frames picked for the model are ever decoded again
+        ok, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+        if not ok:
+            return False
+        self.buffer.append((timestamp, jpeg))
 
-        # If we're in post-trigger collection mode
+        # If we're in post-trigger collection mode (only timestamps: the frames live in the buffer)
         if self._triggered and self._post_trigger_remaining > 0:
-            self._post_trigger_frames.append((timestamp, frame.copy()))
+            self._post_trigger_frames.append(timestamp)
             self._post_trigger_remaining -= 1
 
             if self._post_trigger_remaining == 0:
@@ -115,11 +122,9 @@ class FrameBuffer:
         Returns:
             List of (PIL.Image, timestamp) tuples, ordered chronologically.
         """
-        # Combine pre-event buffer + post-event frames
-        pre_frames = list(self.buffer)
-
-        # Use only pre-event frames if post-trigger capture isn't done
-        all_frames = pre_frames + self._post_trigger_frames
+        # Post-event frames are the newest entries of the circular buffer, so the buffer alone
+        # holds the whole clip (pre-event context followed by the aftermath).
+        all_frames = list(self.buffer)
 
         if not all_frames:
             self.logger.warning("Frame buffer is empty, cannot extract clip")
@@ -134,11 +139,14 @@ class FrameBuffer:
             indices = [int(i * step) for i in range(num_frames)]
             selected = [all_frames[i] for i in indices]
 
-        # Convert to PIL Images
+        # Convert to PIL Images, with timestamps in seconds since the clip start (the montage
+        # labels them "T=0.0s", "T=0.7s", ... for the model; wall-clock epochs are meaningless there)
+        start = selected[0][0]
         result = []
-        for ts, frame in selected:
+        for ts, jpeg in selected:
+            frame = cv2.imdecode(jpeg, cv2.IMREAD_COLOR)
             pil_img = Image.fromarray(frame[:, :, ::-1])  # BGR → RGB
-            result.append((pil_img, ts))
+            result.append((pil_img, round(ts - start, 2)))
 
         self.logger.debug(
             f"Extracted {len(result)} frames from buffer "

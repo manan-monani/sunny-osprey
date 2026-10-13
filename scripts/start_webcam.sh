@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ── Sunny Osprey — Webcam Edition Startup Script ────────────────────────────
-# Starts Docker services (Gemma 4 LLM + Dashboard) and the native webcam pipeline.
+# Starts Docker services (Gemma 3n LLM + Dashboard) and the native webcam pipeline.
 #
 # Usage:
 #   bash scripts/start_webcam.sh            # Start everything
@@ -23,16 +23,16 @@ done
 echo ""
 echo "🦅 ═══════════════════════════════════════════════════════"
 echo "   Sunny Osprey — AI Security Monitor (Webcam Edition)"
-echo "   Hardware: RTX 2050 4GB VRAM | Model: Gemma 4 E2B (llama.cpp)"
+echo "   Hardware: RTX 2050 4GB VRAM | Model: Gemma 3n E2B (llama.cpp)"
 echo "═══════════════════════════════════════════════════════════"
 echo ""
 
 # Step 1: Start Docker services
-echo "🐳 Starting Docker services (Gemma 4 LLM + Dashboard)..."
+echo "🐳 Starting Docker services (Gemma 3n LLM + Dashboard)..."
 docker compose -f "$COMPOSE_FILE" up -d llm dashboard   # capture runs natively below
 
 echo ""
-echo "⏳ Waiting for the LLM server to load Gemma 4..."
+echo "⏳ Waiting for the LLM server to load Gemma 3n..."
 echo "   (Model files come from: docker compose -f docker-compose.webcam.yaml --profile setup run --rm model-prep)"
 echo ""
 

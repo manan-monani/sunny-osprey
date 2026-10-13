@@ -2,14 +2,14 @@
 # Designed for: 16GB RAM, RTX 2050 4GB VRAM, single laptop webcam. Everything runs in Docker.
 #
 # Architecture:
-#   - llm:       Gemma 4 E2B (QAT Q4_0 + vision projector) on llama.cpp, GPU-accelerated
+#   - llm:       Gemma 3n E2B (Q4_K_M + vision projector) on llama.cpp, GPU-accelerated
 #   - mediamtx:  receives the webcam from a browser tab (WebRTC) and re-serves it as RTSP
-#   - webcam:    capture -> MOG2 motion -> frame buffer -> Gemma 4 -> alerts (headless)
+#   - webcam:    capture -> MOG2 motion -> frame buffer -> Gemma 3n -> alerts (headless)
 #   - dashboard: FastAPI web UI + real-time event feed
 #   - mqtt:      MQTT broker (for future Frigate integration)
 #
 # Docker Desktop on Windows cannot pass a USB webcam into containers, so the browser publishes it:
-#   1. One-time model download (~4 GB):
+#   1. One-time model build (~11 GB download + ~10 min conversion; no Hugging Face token needed):
 #        docker compose -f docker-compose.webcam.yaml --profile setup run --rm model-prep
 #   2. Start everything:
 #        docker compose -f docker-compose.webcam.yaml up -d --build
@@ -32,35 +32,50 @@ x-gpu: &gpu
 
 services:
 
-  # ─── Gemma 4 LLM Server (llama.cpp) ───────────────────────────────────────
+  # ─── Gemma 3n LLM Server (llama.cpp) ──────────────────────────────────────
   llm:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
     container_name: sunny-osprey-llm
     <<: *gpu
+    # RAM cap: ~2 GB of the model (the token / per-layer embedding tables) stays on the CPU as a
+    # memory-mapped file, yet each request reads only a few MB of rows. Under this cap the kernel keeps
+    # just the rows in use (measured: 1.6 GB -> 1.0 GB resident, same speed and accuracy).
+    mem_limit: 1536m
     ports:
       - "127.0.0.1:8081:8080"   # OpenAI-compatible API + chat UI at http://localhost:8081
     volumes:
-      - ./models/gguf:/models:ro    # downloaded by the model-prep service
-    # Model files are switchable from .env, e.g. Gemma 3n E2B (see scripts/prepare_gemma3n.sh):
-    #   LLM_MODEL_FILE=gemma-3n-E2B-it-Q4_K_M.gguf
-    #   LLM_MMPROJ_FILE=mmproj-gemma-3n-E2B-it-f16.gguf
+      - ./models/gguf:/models:ro    # built by the model-prep service
+    # Model files are switchable from .env, e.g. Gemma 4 E2B (faster, less accurate here; see
+    # scripts/prepare_gemma4.sh):
+    #   LLM_MODEL_FILE=gemma-4-E2B_q4_0-it.gguf
+    #   LLM_MMPROJ_FILE=mmproj-gemma-4-E2B-it-Q8_0.gguf
     command:
       - --model
-      - /models/${LLM_MODEL_FILE:-gemma-4-E2B_q4_0-it.gguf}
+      - /models/${LLM_MODEL_FILE:-gemma-3n-E2B-it-Q4_K_M.gguf}
       - --mmproj
-      - /models/${LLM_MMPROJ_FILE:-mmproj-gemma-4-E2B-it-Q8_0.gguf}
+      - /models/${LLM_MMPROJ_FILE:-mmproj-gemma-3n-E2B-it-f16.gguf}
       - --alias
-      - gemma-4-E2B-it
+      - ${LLM_MODEL_ALIAS:-gemma-3n-E2B-it}
       - --host
       - 0.0.0.0
       - --port
       - "8080"
       - --ctx-size
-      - "8192"
+      - "4096"        # one montage + prompt is ~750 tokens (Gemma 3n) / ~1500 (Gemma 4)
       - --parallel
       - "1"           # one inference at a time, like the webcam pipeline
-      # Gemma 4 sizes images by a token budget; the default (~280) leaves each frame of the
-      # 3x3 montage too small to judge. 1120 measured best on the test clips (3/7 -> 4/7).
+      # RAM: every camera event is a new prompt, so prompt reuse never happens. Without these the
+      # server keeps up to 8 GiB of old prompts (--cache-ram default) plus context checkpoints.
+      - --cache-ram
+      - "0"
+      - --ctx-checkpoints
+      - "0"
+      # Auto-fit keeps 1 GiB of VRAM free by default, which left 15 of 31 layers on the CPU (slower,
+      # more RAM). A 256 MiB margin puts all layers on the 4 GB GPU: ~5.7 s -> ~3.9 s per event.
+      - --fit-target
+      - "256"
+      # Gemma 4 only (Gemma 3n uses a fixed 256 tokens per image): the default budget (~280) leaves
+      # each frame of the 3x3 montage too small to judge; 1120 measured best (3/7 -> 4/7).
       - --image-min-tokens
       - "1120"
       - --image-max-tokens
@@ -75,31 +90,34 @@ services:
       retries: 30
       start_period: 30s
 
-  # ─── One-time model download (profile: setup) ─────────────────────────────
-  # Fetches the Gemma 4 E2B GGUF + vision projector (pinned revisions) into ./models/gguf
+  # ─── One-time model build (profile: setup) ────────────────────────────────
+  # Downloads Gemma 3n E2B and converts it to GGUF with llama.cpp's converter (text model + vision
+  # projector); community Gemma 3n GGUFs predate llama.cpp's Gemma 3n vision support.
   model-prep:
-    image: python:3.12-slim
-    entrypoint: ["sh", "/scripts/prepare_model.sh"]
+    image: ghcr.io/ggml-org/llama.cpp:full-cuda
+    entrypoint: ["bash", "/scripts/prepare_model.sh"]
     volumes:
       - ./models:/models
       - ./scripts:/scripts:ro
     profiles:
       - setup
 
-  # Alternative: build Gemma 3n E2B GGUFs (download ~11 GB + conversion)
-  model-prep-gemma3n:
-    image: ghcr.io/ggml-org/llama.cpp:full-cuda
-    entrypoint: ["bash", "/scripts/prepare_gemma3n.sh"]
+  # Alternative: download Gemma 4 E2B (~4 GB, official GGUFs)
+  #   docker compose -f docker-compose.webcam.yaml --profile setup-gemma4 run --rm model-prep-gemma4
+  model-prep-gemma4:
+    image: python:3.12-slim
+    entrypoint: ["sh", "/scripts/prepare_gemma4.sh"]
     volumes:
       - ./models:/models
       - ./scripts:/scripts:ro
     profiles:
-      - setup-gemma3n
+      - setup-gemma4
 
   # ─── Webcam Relay (browser -> RTSP) ───────────────────────────────────────
   mediamtx:
     image: bluenviron/mediamtx:1.21.0
     container_name: sunny-osprey-mediamtx
+    mem_limit: 128m
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
     ports:
@@ -118,6 +136,7 @@ services:
       dockerfile: Dockerfile
     image: sunny-osprey-app
     container_name: sunny-osprey-webcam
+    mem_limit: 768m   # 720p/1080p webcams use ~250 MB; headroom for 4K sources
     command: ["/venv/bin/python", "src/sunny_osprey/webcam_capture.py",
               "--config", "/app/sunny-osprey-config.yaml", "--no-preview"]
     environment:
@@ -126,6 +145,12 @@ services:
       - OLLAMA_HOST=http://llm:8080
       - LLM_API=openai
       - DASHBOARD_URL=http://dashboard:8080
+      - ALERT_BACKEND=${ALERT_BACKEND:-}   # e.g. ALERT_BACKEND=none to only show events on the dashboard
+      # One 720p stream needs few threads; by default FFmpeg/OpenCV/OpenBLAS start one per CPU core
+      # (57 threads here), each with its own buffers
+      - OPENCV_FFMPEG_CAPTURE_OPTIONS=threads;2
+      - OMP_NUM_THREADS=2
+      - OPENBLAS_NUM_THREADS=1
     env_file:
       - path: .env
         required: false
@@ -145,6 +170,31 @@ services:
       - sunny-osprey-network
     restart: unless-stopped
 
+  # ─── Clip accuracy test (profile: test) ───────────────────────────────────
+  # Classifies the curated clips in tests/data with the running llm service; fails on any miss.
+  #   docker compose -f docker-compose.webcam.yaml --profile test run --rm clip-tests
+  clip-tests:
+    image: sunny-osprey-app
+    environment:
+      - OLLAMA_HOST=http://llm:8080
+      - LLM_API=openai
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./tests/data:/app/test_videos:ro
+      - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
+      - ./prompt.txt:/app/prompt.txt:ro
+      - ./system_prompt.txt:/app/system_prompt.txt:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+    command: ["/venv/bin/python", "-m", "pytest", "tests/test_clip_accuracy.py", "-p", "no:cacheprovider"]
+    depends_on:
+      llm:
+        condition: service_healthy
+    networks:
+      - sunny-osprey-network
+    profiles:
+      - test
+
   # ─── Dashboard Service ─────────────────────────────────────────────────────
   dashboard:
     build:
@@ -152,7 +202,8 @@ services:
       dockerfile: Dockerfile
     image: sunny-osprey-app
     container_name: sunny-osprey-dashboard
-    command: ["/venv/bin/python", "-m", "uvicorn", "sunny_osprey.dashboard:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    mem_limit: 256m
+    command: ["/venv/bin/python", "-m", "uvicorn", "sunny_osprey.dashboard:app", "--host", "0.0.0.0", "--port", "8080"]
     ports:
       - "8080:8080"   # Web dashboard (open in browser)
     environment:
@@ -162,7 +213,7 @@ services:
       - EVENTS_STORE_PATH=/app/events_store
     volumes:
       - ./events_store:/app/events_store:rw        # Shared event storage
-      - ./src:/app/src:rw                          # Live code reload
+      - ./src:/app/src:ro                          # Code from the working tree (restart to apply edits)
       - ./dashboard:/app/dashboard:ro              # Dashboard static files
       - ./sunny-osprey-config.yaml:/app/sunny-osprey-config.yaml:ro
       - ./prompt.txt:/app/prompt.txt:ro
@@ -207,6 +258,7 @@ services:
   mqtt:
     image: eclipse-mosquitto:2.0.22
     container_name: sunny-osprey-mqtt
+    mem_limit: 64m
     ports:
       - "1883:1883"
       - "9001:9001"

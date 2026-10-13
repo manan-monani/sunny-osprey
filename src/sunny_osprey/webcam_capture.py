@@ -65,6 +65,8 @@ class WebcamPipeline:
         self.fps = webcam_cfg.get("fps", 15)
         self.width = webcam_cfg.get("width", 1280)
         self.height = webcam_cfg.get("height", 720)
+        # Frames are downscaled to this width right after capture (motion detection + buffer)
+        self.process_width = webcam_cfg.get("process_width", 768)
 
         # Motion settings
         motion_cfg = self.config.get("motion", {})
@@ -126,6 +128,8 @@ class WebcamPipeline:
             self.cap = cv2.VideoCapture(self.device_id)
 
         if not self.cap.isOpened():
+            if isinstance(self.device_id, str):
+                return False  # stream not published yet; the caller keeps waiting
             self.logger.error(
                 f"❌ Cannot open webcam device {self.device_id}. "
                 f"Check that no other app is using the camera."
@@ -145,6 +149,14 @@ class WebcamPipeline:
             f"✅ Webcam opened: {actual_w}x{actual_h} @ {actual_fps:.0f}fps"
         )
         return True
+
+    def _downscale(self, frame: np.ndarray) -> np.ndarray:
+        """Shrink a frame to process_width (keeping aspect ratio); smaller frames pass through."""
+        h, w = frame.shape[:2]
+        if w <= self.process_width:
+            return frame
+        new_h = int(h * self.process_width / w)
+        return cv2.resize(frame, (self.process_width, new_h), interpolation=cv2.INTER_AREA)
 
     def _run_inference_async(self, frames, event_id: str):
         """
@@ -252,15 +264,11 @@ class WebcamPipeline:
         self.logger.info("👁️  Monitoring started. Press Ctrl+C to stop.")
         self.logger.info(f"📋 Config: cooldown={self.cooldown}s, device={self.device_id}")
 
+        pending_event_id: Optional[str] = None  # motion seen, still collecting post-event frames
+
         try:
             while self.running:
-                now = time.time()
-
-                # Throttle to desired FPS
-                if (now - last_frame_time) < frame_interval:
-                    time.sleep(0.001)
-                    continue
-
+                # Always read: frames left unread on a network stream queue up and add growing lag
                 ret, frame = self.cap.read()
                 if not ret:
                     read_failures += 1
@@ -276,37 +284,45 @@ class WebcamPipeline:
                     continue
                 read_failures = 0
 
+                # Throttle processing to the configured FPS; surplus frames are dropped
+                now = time.time()
+                if (now - last_frame_time) < frame_interval:
+                    continue
                 last_frame_time = now
+
+                # The model takes images of at most 768px, so keep frames that size from here on:
+                # less RAM in the rolling buffer and much cheaper motion detection
+                frame = self._downscale(frame)
 
                 # Add frame to rolling buffer
                 clip_ready = self.frame_buffer.add(frame)
 
                 # Detect motion (pre-filter)
                 motion_detected, fg_mask = self.motion_detector.detect(frame)
+                if motion_detected and not self.frame_buffer.is_warmed_up:
+                    # MOG2 sees the whole first frames as motion while it learns the background;
+                    # don't let that start the cooldown and delay the first real event
+                    self.motion_detector.last_trigger_time = 0.0
 
-                # If motion triggered AND no inference currently running
-                if motion_detected and not self._pending_inference:
-                    event_id = f"webcam_{uuid.uuid4().hex[:8]}"
-                    self.logger.info(f"🎯 Motion trigger → scheduling inference [{event_id}]")
-
-                    # Signal frame buffer to capture post-event frames too
+                # Motion starts an event; wait for the post-event frames so the model sees what
+                # happened next, not only the (mostly empty) seconds before the trigger
+                if (motion_detected and pending_event_id is None and not self._pending_inference
+                        and self.frame_buffer.is_warmed_up):
+                    pending_event_id = f"webcam_{uuid.uuid4().hex[:8]}"
+                    self.logger.info(f"🎯 Motion trigger → capturing aftermath [{pending_event_id}]")
                     self.frame_buffer.trigger()
 
-                    # Get current frames from buffer (pre-event context)
+                if clip_ready and pending_event_id is not None:
                     clip_frames = self.frame_buffer.get_clip_frames(num_frames=10)
-
-                    if clip_frames and self.frame_buffer.is_warmed_up:
-                        self._pending_inference = True
-                        self.inference_thread = threading.Thread(
-                            target=self._run_inference_async,
-                            args=(clip_frames, event_id),
-                            daemon=True,
-                        )
-                        self.inference_thread.start()
-                    else:
-                        self.logger.debug(
-                            "Buffer not warmed up yet, skipping inference"
-                        )
+                    self.logger.info(f"🧠 Clip ready ({len(clip_frames)} frames) → inference [{pending_event_id}]")
+                    self._pending_inference = True
+                    self.inference_thread = threading.Thread(
+                        target=self._run_inference_async,
+                        args=(clip_frames, pending_event_id),
+                        daemon=True,
+                    )
+                    self.inference_thread.start()
+                    pending_event_id = None
 
                 # Push frame to dashboard periodically
                 if (now - last_dashboard_push) > dashboard_frame_interval:

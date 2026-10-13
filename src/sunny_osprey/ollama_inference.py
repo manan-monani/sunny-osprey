@@ -59,8 +59,14 @@ class OllamaInferenceEngine:
         self.timeout = ollama_config.get("timeout", 60)
         self.max_new_tokens = llm_config.get("max_new_tokens", 350)
         # "ollama": Ollama's /api/chat. "openai": OpenAI-compatible /v1/chat/completions, as served by
-        # llama.cpp's llama-server (runs Gemma 4 E2B with image input on a 4 GB GPU).
+        # llama.cpp's llama-server (runs Gemma 3n E2B with image input on a 4 GB GPU).
         self.api = (os.getenv("LLM_API") or ollama_config.get("api", "ollama")).lower()
+        # "montage": frames stitched into one grid image (fast; for single-image models like llava-phi3).
+        # "separate": frames sent as individual images (needs a multi-image model such as Gemma 3n).
+        # On the test clips Gemma 3n scored 6/7 with a 3x3 montage (~4 s) and 7/7 with 4 separate
+        # frames (~7 s): in a montage each frame is only ~256 px and a costume parade read as trespassing.
+        self.frame_mode = ollama_config.get("frame_mode", "montage")
+        self.num_frames = int(ollama_config.get("num_frames", 4))
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(
@@ -109,19 +115,17 @@ class OllamaInferenceEngine:
             self.logger.info(f"Waiting for LLM server at {self.host}...")
             time.sleep(5)
 
-    def _chat_openai(self, system_prompt: str, user_prompt: str, encoded_image: str) -> str:
+    def _chat_openai(self, system_prompt: str, user_prompt: str, encoded_images: List[str]) -> str:
         """Send one chat request to an OpenAI-compatible endpoint and return the reply text."""
+        content = [{"type": "text", "text": user_prompt}] + [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}}
+            for img in encoded_images
+        ]
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}},
-                    ],
-                },
+                {"role": "user", "content": content},
             ],
             "max_tokens": self.max_new_tokens,
             "temperature": 0.0,  # Deterministic security evaluation
@@ -246,9 +250,14 @@ class OllamaInferenceEngine:
             self.logger.error("No frames provided for analysis")
             return None
 
-        # Build chronological montage grid
-        montage_image = self._create_frame_grid(frames)
-        encoded_image = self._encode_image(montage_image)
+        if self.frame_mode == "separate":
+            # Evenly spaced frames, oldest first; Gemma's vision encoder works at 768x768
+            step = max(1, len(frames) / self.num_frames)
+            picked = [frames[int(i * step)] for i in range(min(self.num_frames, len(frames)))]
+            encoded_images = [self._encode_image(img, max_size=768) for img, _ in picked]
+        else:
+            # Build chronological montage grid
+            encoded_images = [self._encode_image(self._create_frame_grid(frames))]
 
         user_prompt = self._load_prompt()
         system_prompt = self._load_system_prompt()
@@ -258,7 +267,7 @@ class OllamaInferenceEngine:
             {
                 "role": "user",
                 "content": user_prompt,
-                "images": [encoded_image],
+                "images": encoded_images,
             },
         ]
 
@@ -276,7 +285,7 @@ class OllamaInferenceEngine:
         try:
             start = time.perf_counter()
             if self.api == "openai":
-                raw_response = self._chat_openai(system_prompt, user_prompt, encoded_image)
+                raw_response = self._chat_openai(system_prompt, user_prompt, encoded_images)
             else:
                 resp = requests.post(
                     f"{self.host}/api/chat",

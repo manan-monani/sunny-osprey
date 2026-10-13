@@ -58,7 +58,7 @@ class AlertManager:
         self.config = raw_config.get('alerts', raw_config)
         self.logger = logging.getLogger(__name__)
 
-        self.backend = os.getenv('ALERT_BACKEND', self.config.get('backend', 'all')).lower()
+        self.backend = (os.getenv('ALERT_BACKEND') or self.config.get('backend', 'all')).lower()
         
         telegram_config = self.config.get('telegram', {})
         grafana_config = self.config.get('grafana', {})
@@ -81,8 +81,8 @@ class AlertManager:
             graf = GrafanaIRMAlert(grafana_config)
             self.backends.append(graf)
             
-        # Fallback if specific backend chosen
-        if not self.backends:
+        # Fallback if specific backend chosen ("none" = alerts off, results only go to the dashboard)
+        if not self.backends and self.backend != 'none':
             if self.backend == 'ntfy':
                 self.backends.append(NtfyAlert(ntfy_config))
             elif self.backend == 'telegram':

@@ -1,3 +1,8 @@
 # Model weights and GGUFs (~15 GB), rebuilt by the model-prep service
 models/
 .env
+
+# Generated at runtime / by Python (the dashboard clears events_store on startup)
+events_store/*.json
+__pycache__/
+*.egg-info/
